@@ -175,9 +175,9 @@ export default function NationCreation({ uid }: Props) {
       } else {
         throw new Error(json.error || "건국에 실패했습니다.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("건국 실패:", error);
-      setError(error.message || "건국 중 오류가 발생했습니다.");
+      setError(error instanceof Error ? error.message : "건국 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
     }

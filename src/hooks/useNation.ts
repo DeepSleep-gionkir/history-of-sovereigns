@@ -48,13 +48,18 @@ export interface NationData {
 
 export function useNation(uid: string | null) {
   const [nation, setNation] = useState<NationData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(Boolean(uid));
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNation(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     const unsub = onSnapshot(doc(db, "nations", uid), (doc) => {
       if (doc.exists()) {

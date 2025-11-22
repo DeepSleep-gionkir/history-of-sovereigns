@@ -19,6 +19,22 @@ import {
   FaHome,
 } from "react-icons/fa";
 
+type AdminNation = {
+  uid: string;
+  identity: { name: string; ruler_title: string };
+  resources: { gold: number; food: number; materials?: number; energy?: number; territory?: number };
+  stats: { stability: number; military: number };
+  status?: { cooldown_seconds?: number; is_alive?: boolean; shield_until?: string };
+};
+
+type AdminTile = {
+  id: string;
+  owner?: string | null;
+  type?: string;
+  q?: number;
+  r?: number;
+};
+
 const ADMIN_UIDS = (
   process.env.NEXT_PUBLIC_ADMIN_UIDS || "EoC0epp9QOae5GUxFyHFeX2Bfln1"
 )
@@ -27,7 +43,7 @@ const ADMIN_UIDS = (
   .filter(Boolean);
 
 export default function AdminPage() {
-  const [nations, setNations] = useState<any[]>([]);
+  const [nations, setNations] = useState<AdminNation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
@@ -52,7 +68,9 @@ export default function AdminPage() {
   const loadNations = async () => {
     try {
       const snapshot = await getDocs(collection(db, "nations"));
-      const list = snapshot.docs.map((doc) => doc.data());
+      const list = snapshot.docs.map(
+        (docSnap) => ({ uid: docSnap.id, ...(docSnap.data() as Omit<AdminNation, "uid">) })
+      );
       setNations(list);
       setIsAdmin(true);
     } catch (error) {
@@ -146,10 +164,10 @@ export default function AdminPage() {
       const batch = writeBatch(db);
       let count = 0;
       snap.forEach((docSnap) => {
-        const data = docSnap.data() || {};
-        const updates: any = {};
-        const status = data.status || {};
-        const resources = data.resources || {};
+        const data = docSnap.data() as Partial<AdminNation> | undefined;
+        const updates: Record<string, unknown> = {};
+        const status = data?.status || {};
+        const resources = data?.resources || {};
 
         if (!status.cooldown_seconds) updates["status.cooldown_seconds"] = 180;
         if (status.is_alive === undefined) updates["status.is_alive"] = true;
@@ -190,17 +208,19 @@ export default function AdminPage() {
 
     try {
       const tilesSnap = await getDocs(collection(db, "tiles"));
-      const allTiles = tilesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      let emptyTiles = allTiles.filter((t: any) => !t.owner);
+      const allTiles: AdminTile[] = tilesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as AdminTile) }));
+      let emptyTiles = allTiles.filter((t) => !t.owner);
 
       const nationsSnap = await getDocs(collection(db, "nations"));
-      const allNations = nationsSnap.docs.map((d) => d.data());
+      const allNations = nationsSnap.docs.map(
+        (d) => ({ uid: d.id, ...(d.data() as Omit<AdminNation, "uid">) })
+      );
 
       const batch = writeBatch(db);
       let assignedCount = 0;
 
       for (const nation of allNations) {
-        const ownsLand = allTiles.some((t: any) => t.owner === nation.uid);
+        const ownsLand = allTiles.some((t) => t.owner === nation.uid);
 
         if (!ownsLand) {
           if (emptyTiles.length === 0) {
@@ -210,9 +230,9 @@ export default function AdminPage() {
 
           const randomIndex = Math.floor(Math.random() * emptyTiles.length);
           // 바다(ocean)는 스킵
-          const targetTile = emptyTiles.find((t: any) => t.type !== "ocean");
+          const targetTile = emptyTiles.find((t) => t.type !== "ocean");
           if (!targetTile) break;
-          emptyTiles = emptyTiles.filter((t: any) => t.id !== targetTile.id);
+          emptyTiles = emptyTiles.filter((t) => t.id !== targetTile.id);
           emptyTiles.splice(randomIndex, 1);
 
           const tileRef = doc(db, "tiles", targetTile.id);
@@ -283,8 +303,8 @@ export default function AdminPage() {
           <FaGlobeAmericas /> Genesis System
         </h3>
         <p style={{ fontSize: "0.8rem", color: "#888", marginBottom: "10px" }}>
-          맵을 초기화하면 모든 유저가 땅을 잃습니다. 초기화 후 반드시 '유랑민
-          구제'를 실행하세요.
+          맵을 초기화하면 모든 유저가 땅을 잃습니다. 초기화 후 반드시 “유랑민
+          구제”를 실행하세요.
         </p>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
@@ -421,8 +441,16 @@ export default function AdminPage() {
   );
 }
 
-function AdminInput({ label, uid, field, val, onSave }: any) {
-  const [value, setValue] = useState(val);
+interface AdminInputProps {
+  label: string;
+  uid: string;
+  field: string;
+  val: number;
+  onSave: (uid: string, field: string, value: string) => void;
+}
+
+function AdminInput({ label, uid, field, val, onSave }: AdminInputProps) {
+  const [value, setValue] = useState<string>(String(val));
   return (
     <div style={{ background: "#333", padding: "10px", borderRadius: "5px" }}>
       <label

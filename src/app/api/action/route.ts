@@ -139,7 +139,14 @@ export async function POST(request: Request) {
     console.log("🤖 AI Raw Response:", text); // 여기서 AI가 뭐라고 답했는지 터미널에 찍힘
 
     // 5. JSON 파싱 (안전 장치 추가)
-    let resultData;
+    let resultData: {
+      narrative?: string;
+      changes?: Record<string, number>;
+      tags?: { add?: string[]; remove?: string[] };
+      news_headline?: string;
+      cooldown_seconds?: number;
+      shield_hours?: number;
+    };
     try {
       const cleanJson = text
         .replace(/```json/g, "")
@@ -160,7 +167,7 @@ export async function POST(request: Request) {
     // 6. DB 업데이트
     resultData.narrative =
       resultData.narrative || "결과 보고서를 생성하지 못했습니다.";
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, unknown> = {
       "status.last_action_at": new Date().toISOString(),
       "status.cooldown_seconds": Math.min(
         MAX_COOLDOWN,
@@ -226,14 +233,14 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, result: resultData });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("❌ [Critical Server Error]:", error);
     return NextResponse.json(
       {
-        error: error.message || "알 수 없는 서버 오류 발생",
+        error: error instanceof Error ? error.message : "알 수 없는 서버 오류 발생",
       },
       { status: 500 }
     );

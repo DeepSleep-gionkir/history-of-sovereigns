@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import {
-  adminDb,
-  AuthError,
-  verifyUserFromRequest,
-} from "@/lib/firebaseAdmin";
+import { adminDb, AuthError, verifyUserFromRequest } from "@/lib/firebaseAdmin";
 
 type FoundingAnswers = {
   name: string;
@@ -54,7 +50,16 @@ export async function POST(request: Request) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const prompt = buildPrompt(answers, fallbackProfile);
 
-    let aiResult: any = {};
+    type AiResult = {
+      description?: string;
+      flag_color?: string;
+      stats?: Record<string, number>;
+      resources?: Record<string, number>;
+      tags?: string[] | { add?: string[]; remove?: string[] };
+      narrative?: string;
+    };
+
+    let aiResult: AiResult = {};
     try {
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -132,19 +137,19 @@ export async function POST(request: Request) {
       nation: nationData,
       capital: capitalResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("Create API 오류:", error);
     return NextResponse.json(
-      { error: error.message || "국가 생성 실패" },
+      { error: error instanceof Error ? error.message : "국가 생성 실패" },
       { status: 500 }
     );
   }
 }
 
-function buildPrompt(answers: FoundingAnswers, fallback: any) {
+function buildPrompt(answers: FoundingAnswers, fallback: unknown) {
   return `
   당신은 'HISTORY OF SOVEREIGNS' 서버의 생성 AI입니다.
   유저가 직접 입력한 국가명은 절대 변경하지 마세요.
@@ -180,25 +185,32 @@ function buildPrompt(answers: FoundingAnswers, fallback: any) {
   `;
 }
 
-function sanitizeNumbers(obj: any, min: number, max: number) {
+function sanitizeNumbers(obj: unknown, min: number, max: number) {
   const result: Record<string, number> = {};
-  for (const [key, val] of Object.entries(obj || {})) {
-    const num = Number(val);
-    if (Number.isNaN(num)) continue;
-    result[key] = Math.min(max, Math.max(min, Math.round(num)));
+  if (typeof obj === "object" && obj) {
+    for (const [key, val] of Object.entries(obj)) {
+      const num = Number(val);
+      if (Number.isNaN(num)) continue;
+      result[key] = Math.min(max, Math.max(min, Math.round(num)));
+    }
   }
   return result;
 }
 
-function mergeTags(base: string[], aiTags: any) {
+function mergeTags(base: string[], aiTags: unknown) {
   const tags = new Set<string>(base || []);
   if (Array.isArray(aiTags)) {
     aiTags.forEach((t) => {
       if (typeof t === "string") tags.add(t);
     });
   }
-  if (aiTags?.add && Array.isArray(aiTags.add)) {
-    aiTags.add.forEach((t: any) => {
+  if (
+    typeof aiTags === "object" &&
+    aiTags &&
+    "add" in aiTags &&
+    Array.isArray((aiTags as { add: unknown }).add)
+  ) {
+    (aiTags as { add: unknown[] }).add.forEach((t) => {
       if (typeof t === "string") tags.add(t);
     });
   }

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     await verifyUserFromRequest(request, attackerUid);
 
     // 결과를 담을 변수들 (트랜잭션 밖에서 접근하기 위해 미리 선언)
-    let battleResult: any = {};
+    let battleResult: { success?: boolean; msg?: string } = {};
     let attackerName = ""; // 공격자 이름 저장용
     let isTargetCapital = false; // 수도인지 여부 저장용
     let defenderUid = "";
@@ -38,15 +38,15 @@ export async function POST(request: Request) {
       // 1. 타일 정보 확인
       const tileRef = adminDb.collection("tiles").doc(targetTileId);
       const tileSnap = await transaction.get(tileRef);
-      if (!tileSnap.exists()) throw "존재하지 않는 영토입니다.";
+      if (!tileSnap.exists()) throw new Error("존재하지 않는 영토입니다.");
 
       const tileData = tileSnap.data() || {};
       defenderUid = tileData.owner;
       isTargetCapital = tileData.type === "capital"; // 변수에 저장
 
       if (!defenderUid)
-        throw "주인이 없는 땅입니다. (공격 대신 '개척'을 하세요)";
-      if (defenderUid === attackerUid) throw "자신의 땅을 공격할 수 없습니다.";
+        throw new Error("주인이 없는 땅입니다. (공격 대신 '개척'을 하세요)");
+      if (defenderUid === attackerUid) throw new Error("자신의 땅을 공격할 수 없습니다.");
 
       // 인접성 서버 검증: 공격자는 대상 타일 인근에 땅이 하나라도 있어야 함
       const neighbors = getNeighbors(tileData.q, tileData.r);
@@ -61,13 +61,13 @@ export async function POST(request: Request) {
         (snap) => snap.exists && snap.data()?.owner === attackerUid
       );
       if (!isAdjacent) {
-        throw "인접한 영토에서만 침공할 수 있습니다.";
+        throw new Error("인접한 영토에서만 침공할 수 있습니다.");
       }
 
       // 2. 공격자(나) 정보 가져오기
       const attackerRef = adminDb.collection("nations").doc(attackerUid);
       const attackerSnap = await transaction.get(attackerRef);
-      if (!attackerSnap.exists()) throw "공격자 국가 정보 오류";
+      if (!attackerSnap.exists()) throw new Error("공격자 국가 정보 오류");
       const attackerData = attackerSnap.data() || {};
       const attackerResources = attackerData.resources || {};
       const attackerStats = attackerData.stats || {};
@@ -83,13 +83,13 @@ export async function POST(request: Request) {
         attackerEnergy < ATTACK_COST_ENERGY ||
         attackerFood < ATTACK_COST_FOOD
       ) {
-        throw "공격에 필요한 보급품(에너지/식량)이 부족합니다.";
+        throw new Error("공격에 필요한 보급품(에너지/식량)이 부족합니다.");
       }
 
       // 3. 방어자(적) 정보 가져오기
       const defenderRef = adminDb.collection("nations").doc(defenderUid);
       const defenderSnap = await transaction.get(defenderRef);
-      if (!defenderSnap.exists()) throw "방어자 국가 정보 오류";
+      if (!defenderSnap.exists()) throw new Error("방어자 국가 정보 오류");
       const defenderData = defenderSnap.data() || {};
       const defenderResources = defenderData.resources || {};
       const defenderStats = defenderData.stats || {};
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         ? new Date(defenderData.status.shield_until).getTime()
         : 0;
       if (shieldUntil > Date.now()) {
-        throw "상대 국가가 보호막 가동 중입니다. 다른 영토를 노리세요.";
+        throw new Error("상대 국가가 보호막 가동 중입니다. 다른 영토를 노리세요.");
       }
 
       // 4. 전투력 계산
@@ -256,13 +256,13 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, result: battleResult });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("War Error:", error);
     return NextResponse.json(
-      { error: typeof error === "string" ? error : "전쟁 처리 실패" },
+      { error: error instanceof Error ? error.message : "전쟁 처리 실패" },
       { status: 500 }
     );
   }

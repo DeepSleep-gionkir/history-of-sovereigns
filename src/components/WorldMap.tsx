@@ -169,7 +169,7 @@ export default function WorldMap({ myNation }: { myNation?: NationData }) {
         setOwnerLoading(true);
         const snap = await getDoc(doc(db, "nations", ownerUid));
         if (!cancelled && snap.exists()) {
-          const d = snap.data() as any;
+          const d = snap.data() as Partial<NationData>;
           setInspectedOwner({
             uid: ownerUid,
             name: d.identity?.name || "Unknown",

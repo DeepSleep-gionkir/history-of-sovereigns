@@ -24,21 +24,21 @@ export async function POST(request: Request) {
       // 1. 유저 정보 가져오기 (돈 확인)
       const nationRef = adminDb.collection("nations").doc(uid);
       const nationSnap = await transaction.get(nationRef);
-      if (!nationSnap.exists()) throw "국가 정보가 없습니다.";
+      if (!nationSnap.exists()) throw new Error("국가 정보가 없습니다.");
 
       const nationData = nationSnap.data() || {};
       const gold = nationData.resources?.gold ?? 0;
       if (gold < EXPANSION_COST) {
-        throw `국고가 부족합니다. (필요: ${EXPANSION_COST}G)`;
+        throw new Error(`국고가 부족합니다. (필요: ${EXPANSION_COST}G)`);
       }
 
       // 2. 타일 정보 가져오기 (빈 땅인지 확인)
       const tileRef = adminDb.collection("tiles").doc(tileId);
       const tileSnap = await transaction.get(tileRef);
-      if (!tileSnap.exists()) throw "존재하지 않는 타일입니다.";
+      if (!tileSnap.exists()) throw new Error("존재하지 않는 타일입니다.");
 
       const tileData = tileSnap.data() || {};
-      if (tileData.owner) throw "이미 주인이 있는 영토입니다.";
+      if (tileData.owner) throw new Error("이미 주인이 있는 영토입니다.");
 
       // 3. 인접성 체크 (서버 검증)
       const existingTerritory = nationData.resources?.territory || 0;
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
       // 첫 땅을 잃은 플레이어는 어디서든 정착 가능, 그 외엔 인접만 허용
       if (!hasNeighbor && existingTerritory > 0) {
-        throw "인접한 영토를 통해서만 확장할 수 있습니다.";
+        throw new Error("인접한 영토를 통해서만 확장할 수 있습니다.");
       }
 
       // 4. 실행 (돈 깎기 + 땅 주기 + 통계 업데이트)
@@ -82,13 +82,13 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("Expansion Failed:", error);
     return NextResponse.json(
-      { error: typeof error === "string" ? error : "점령 실패" },
+      { error: error instanceof Error ? error.message : "점령 실패" },
       { status: 500 }
     );
   }

@@ -82,7 +82,7 @@ export async function verifyUserFromRequest(
       throw new AuthError("UID가 일치하지 않습니다.", 403);
     }
     return decoded;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof AuthError) throw err;
     throw new AuthError("유효하지 않은 인증 토큰입니다.", 401);
   }
