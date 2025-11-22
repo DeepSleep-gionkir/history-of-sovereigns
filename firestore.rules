@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        (request.auth.token.admin == true ||
+          // 임시: 관리자 UID 화이트리스트 (env에 맞게 교체하세요)
+          request.auth.uid in ["EoC0epp9QOae5GUxFyHFeX2Bfln1"]);
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /nations/{uid} {
+      allow read: if isSignedIn() || isAdmin();
+      allow create: if isOwner(uid) && !exists(/databases/$(database)/documents/nations/$(uid));
+      allow update, delete: if isOwner(uid) || isAdmin();
+
+      match /logs/{logId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid) || isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /tiles/{tileId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
