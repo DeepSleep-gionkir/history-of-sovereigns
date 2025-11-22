@@ -10,7 +10,6 @@ import WorldMap from "@/components/WorldMap";
 import RankingBoard from "@/components/RankingBoard";
 import GameOver from "@/components/GameOver"; // 추가
 import {
-  FaGoogle,
   FaFortAwesome,
   FaGlobeAmericas,
   FaTrophy,

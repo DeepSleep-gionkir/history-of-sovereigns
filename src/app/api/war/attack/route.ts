@@ -29,7 +29,12 @@ export async function POST(request: Request) {
     await verifyUserFromRequest(request, attackerUid);
 
     // 결과를 담을 변수들 (트랜잭션 밖에서 접근하기 위해 미리 선언)
-    let battleResult: { success?: boolean; msg?: string } = {};
+    let battleResult: {
+      success?: boolean;
+      msg?: string;
+      loot?: number;
+      shieldHours?: number;
+    } = {};
     let attackerName = ""; // 공격자 이름 저장용
     let isTargetCapital = false; // 수도인지 여부 저장용
     let defenderUid = "";
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
       // 1. 타일 정보 확인
       const tileRef = adminDb.collection("tiles").doc(targetTileId);
       const tileSnap = await transaction.get(tileRef);
-      if (!tileSnap.exists()) throw new Error("존재하지 않는 영토입니다.");
+      if (!tileSnap.exists) throw new Error("존재하지 않는 영토입니다.");
 
       const tileData = tileSnap.data() || {};
       defenderUid = tileData.owner;
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
       // 2. 공격자(나) 정보 가져오기
       const attackerRef = adminDb.collection("nations").doc(attackerUid);
       const attackerSnap = await transaction.get(attackerRef);
-      if (!attackerSnap.exists()) throw new Error("공격자 국가 정보 오류");
+      if (!attackerSnap.exists) throw new Error("공격자 국가 정보 오류");
       const attackerData = attackerSnap.data() || {};
       const attackerResources = attackerData.resources || {};
       const attackerStats = attackerData.stats || {};
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
       // 3. 방어자(적) 정보 가져오기
       const defenderRef = adminDb.collection("nations").doc(defenderUid);
       const defenderSnap = await transaction.get(defenderRef);
-      if (!defenderSnap.exists()) throw new Error("방어자 국가 정보 오류");
+      if (!defenderSnap.exists) throw new Error("방어자 국가 정보 오류");
       const defenderData = defenderSnap.data() || {};
       const defenderResources = defenderData.resources || {};
       const defenderStats = defenderData.stats || {};

@@ -42,12 +42,15 @@ export async function POST(request: Request) {
     const nationRef = adminDb.collection("nations").doc(uid);
     const nationSnap = await nationRef.get();
 
-    if (!nationSnap.exists()) {
+    if (!nationSnap.exists) {
       console.error(`❌ [Server Error] Nation not found for UID: ${uid}`);
       return NextResponse.json({ error: "국가 데이터 없음" }, { status: 404 });
     }
 
     const nationData = nationSnap.data();
+    if (!nationData) {
+      return NextResponse.json({ error: "국가 데이터 없음" }, { status: 404 });
+    }
     if (nationData.status?.is_alive === false) {
       return NextResponse.json(
         { error: "이미 멸망한 국가입니다." },
@@ -156,7 +159,8 @@ export async function POST(request: Request) {
     } catch (e) {
       console.error(
         "❌ [JSON Parse Error] AI output was not valid JSON:",
-        text
+        text,
+        e
       );
       return NextResponse.json(
         { error: "AI 응답 처리 실패 (JSON 오류)" },
@@ -190,12 +194,15 @@ export async function POST(request: Request) {
       }
     }
 
-    if (resultData.tags?.add?.length > 0) {
-      updateData["tags"] = FieldValue.arrayUnion(...resultData.tags.add);
+    const tagsToAdd = resultData.tags?.add;
+    const tagsToRemove = resultData.tags?.remove;
+
+    if (Array.isArray(tagsToAdd) && tagsToAdd.length > 0) {
+      updateData["tags"] = FieldValue.arrayUnion(...tagsToAdd);
     }
 
-    if (resultData.tags?.remove?.length > 0) {
-      updateData["tags_remove"] = resultData.tags.remove;
+    if (Array.isArray(tagsToRemove) && tagsToRemove.length > 0) {
+      updateData["tags_remove"] = tagsToRemove;
     }
 
     if (resultData.shield_hours && resultData.shield_hours > 0) {
@@ -210,7 +217,7 @@ export async function POST(request: Request) {
       await nationRef.update(restUpdates);
     }
 
-    if (tags_remove?.length > 0) {
+    if (Array.isArray(tags_remove) && tags_remove.length > 0) {
       await nationRef.update({
         tags: FieldValue.arrayRemove(...tags_remove),
       });

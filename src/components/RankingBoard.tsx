@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { FaCrown, FaMapMarkerAlt, FaTrophy } from "react-icons/fa";
+import { FaCrown, FaTrophy } from "react-icons/fa";
 
 interface Ranker {
   uid: string;

@@ -12,6 +12,8 @@ export function hexToPixel(col: number, row: number) {
 // 아직 안 쓰는 함수는 주석 처리하거나 파라미터 제거
 // 지금은 비워두거나 any로 에러만 막아둠
 export function pixelToHex(_x: number, _y: number) {
+  void _x;
+  void _y;
   // 추후 구현
 }
 

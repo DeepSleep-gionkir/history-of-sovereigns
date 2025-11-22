@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -27,13 +27,13 @@ type AdminNation = {
   status?: { cooldown_seconds?: number; is_alive?: boolean; shield_until?: string };
 };
 
-type AdminTile = {
-  id: string;
+type TileData = {
   owner?: string | null;
   type?: string;
   q?: number;
   r?: number;
 };
+type AdminTile = TileData & { id: string };
 
 const ADMIN_UIDS = (
   process.env.NEXT_PUBLIC_ADMIN_UIDS || "EoC0epp9QOae5GUxFyHFeX2Bfln1"
@@ -47,6 +47,23 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
+
+  const loadNations = useCallback(async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "nations"));
+      const list = snapshot.docs.map(
+        (docSnap) => ({ uid: docSnap.id, ...(docSnap.data() as Omit<AdminNation, "uid">) })
+      );
+      setNations(list);
+      setIsAdmin(true);
+    } catch (error) {
+      console.error(error);
+      alert("접근 권한이 없습니다.");
+      router.push("/");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -63,24 +80,7 @@ export default function AdminPage() {
       loadNations();
     });
     return () => unsub();
-  }, []);
-
-  const loadNations = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "nations"));
-      const list = snapshot.docs.map(
-        (docSnap) => ({ uid: docSnap.id, ...(docSnap.data() as Omit<AdminNation, "uid">) })
-      );
-      setNations(list);
-      setIsAdmin(true);
-    } catch (error) {
-      console.error(error);
-      alert("접근 권한이 없습니다.");
-      router.push("/");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadNations, router]);
 
   const updateStat = async (
     targetUid: string,
@@ -209,7 +209,10 @@ export default function AdminPage() {
 
     try {
       const tilesSnap = await getDocs(collection(db, "tiles"));
-      const allTiles: AdminTile[] = tilesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as AdminTile) }));
+      const allTiles: AdminTile[] = tilesSnap.docs.map((d) => {
+        const data = d.data() as TileData;
+        return { id: d.id, ...data };
+      });
       let emptyTiles = allTiles.filter((t) => !t.owner);
 
       const nationsSnap = await getDocs(collection(db, "nations"));

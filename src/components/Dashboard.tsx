@@ -286,16 +286,16 @@ export default function Dashboard({ data, uid }: Props) {
               }}
             >
               <StatusChip label="룰" value="리롤 불가 · 1인 1국가" tone="alert" />
-              <StatusChip
-                label="기후"
-                value={data.attributes?.climate || "미상"}
-                tone="info"
-              />
-              <StatusChip
-                label="정치체제"
-                value={data.attributes?.politics || "미상"}
-                tone="muted"
-              />
+            <StatusChip
+              label="기후"
+              value={data.attributes?.climate || "미상"}
+              tone="info"
+            />
+            <StatusChip
+              label="정치체제"
+              value={data.attributes?.politics || "미상"}
+              tone="muted"
+            />
             </div>
           </div>
         </div>

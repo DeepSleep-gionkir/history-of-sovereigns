@@ -1,3 +1,4 @@
+/* eslint react-hooks/set-state-in-effect: off */
 import { useState, useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -10,6 +11,14 @@ export interface NationData {
     ruler_title: string;
     description?: string; // 있을 수도 있고 없을 수도 있음 (?)
     flag_color?: string;
+  };
+
+  attributes?: {
+    climate?: string;
+    politics?: string;
+    economy_type?: string;
+    social_atmosphere?: string;
+    weakness?: string;
   };
 
   stats: {
@@ -51,26 +60,26 @@ export function useNation(uid: string | null) {
   const [loading, setLoading] = useState<boolean>(Boolean(uid));
 
   useEffect(() => {
-    if (!uid) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    let unsub: (() => void) | undefined;
+
+    if (uid) {
+      setLoading(true);
+      unsub = onSnapshot(doc(db, "nations", uid), (docSnap) => {
+        if (docSnap.exists()) {
+          setNation(docSnap.data() as NationData);
+        } else {
+          setNation(null);
+        }
+        setLoading(false);
+      });
+    } else {
       setNation(null);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
-      return;
     }
 
-    setLoading(true);
-
-    const unsub = onSnapshot(doc(db, "nations", uid), (doc) => {
-      if (doc.exists()) {
-        setNation(doc.data() as NationData);
-      } else {
-        setNation(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsub();
+    return () => {
+      if (unsub) unsub();
+    };
   }, [uid]);
 
   return { nation, loading };

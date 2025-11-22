@@ -11,7 +11,6 @@ import {
   FaGlobeAmericas,
   FaHammer,
   FaShieldAlt,
-  FaStar,
 } from "react-icons/fa";
 import { GiCrossedSwords } from "react-icons/gi";
 
@@ -328,6 +327,7 @@ export default function WorldMap({ myNation }: { myNation?: NationData }) {
         alert("실패: " + json.error);
       }
     } catch (e) {
+      console.error("Occupy failed:", e);
       alert("통신 오류");
     }
   };
@@ -369,6 +369,7 @@ export default function WorldMap({ myNation }: { myNation?: NationData }) {
         alert("오류: " + json.error);
       }
     } catch (e) {
+      console.error("Attack failed:", e);
       alert("통신 오류");
     }
   };

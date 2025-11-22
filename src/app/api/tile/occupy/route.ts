@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       // 1. 유저 정보 가져오기 (돈 확인)
       const nationRef = adminDb.collection("nations").doc(uid);
       const nationSnap = await transaction.get(nationRef);
-      if (!nationSnap.exists()) throw new Error("국가 정보가 없습니다.");
+      if (!nationSnap.exists) throw new Error("국가 정보가 없습니다.");
 
       const nationData = nationSnap.data() || {};
       const gold = nationData.resources?.gold ?? 0;
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       // 2. 타일 정보 가져오기 (빈 땅인지 확인)
       const tileRef = adminDb.collection("tiles").doc(tileId);
       const tileSnap = await transaction.get(tileRef);
-      if (!tileSnap.exists()) throw new Error("존재하지 않는 타일입니다.");
+      if (!tileSnap.exists) throw new Error("존재하지 않는 타일입니다.");
 
       const tileData = tileSnap.data() || {};
       if (tileData.owner) throw new Error("이미 주인이 있는 영토입니다.");
