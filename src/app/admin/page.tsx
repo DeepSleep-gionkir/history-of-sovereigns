@@ -167,7 +167,8 @@ export default function AdminPage() {
         const data = docSnap.data() as Partial<AdminNation> | undefined;
         const updates: Record<string, unknown> = {};
         const status = data?.status || {};
-        const resources = data?.resources || {};
+        const resources = (data?.resources ||
+          {}) as Partial<AdminNation["resources"]>;
 
         if (!status.cooldown_seconds) updates["status.cooldown_seconds"] = 180;
         if (status.is_alive === undefined) updates["status.is_alive"] = true;
