@@ -111,6 +111,14 @@ export async function POST(request: Request) {
       [현재 수치]
       Stability ${nationData.stats.stability}, Economy ${nationData.stats.economy}, Military ${nationData.stats.military}, Happiness ${nationData.stats.happiness}, Technology ${nationData.stats.technology}, Sustainability ${nationData.stats.sustainability}, Influence ${nationData.stats.influence}
       자원: Gold ${nationData.resources.gold}, Food ${nationData.resources.food}, Materials ${nationData.resources.materials}, Energy ${nationData.resources.energy}
+      확장 지표: Diplomacy ${nationData.stats.diplomacy ?? "?"}, Intelligence ${nationData.stats.intelligence ?? "?"}, Logistics ${nationData.stats.logistics ?? "?"}, Culture ${nationData.stats.culture ?? "?"}, Cohesion ${nationData.stats.cohesion ?? "?"}, Innovation ${nationData.stats.innovation ?? "?"}, Security ${nationData.stats.security ?? "?"}, Growth ${nationData.stats.growth ?? "?"}
+      확장 자원: Research ${nationData.resources.research ?? 0}, Culture ${nationData.resources.culture_points ?? 0}, Intel ${nationData.resources.intel ?? 0}, Logistics ${nationData.resources.logistics_cap ?? 0}, Legitimacy ${nationData.resources.legitimacy ?? 0}
+
+      [교리/연결망]
+      Doctrines: ${JSON.stringify(nationData.strategic_profile?.doctrines || {}, null, 0)}
+      내부 링크: ${(nationData.strategic_profile?.internal_links || []).join(" / ") || "없음"}
+      외부 링크: ${(nationData.strategic_profile?.external_links || []).join(" / ") || "없음"}
+      상호 효과: ${(nationData.strategic_profile?.synergy_effects || []).join(" / ") || "없음"}
 
       [최근 역사 5건]
       ${historyText || "기록 없음"}

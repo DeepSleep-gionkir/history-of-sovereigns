@@ -19,6 +19,23 @@ export interface NationData {
     economy_type?: string;
     social_atmosphere?: string;
     weakness?: string;
+    origin?: string;
+    military_doctrine?: string;
+    diplomatic_posture?: string;
+    tech_ethics?: string;
+    resource_strategy?: string;
+    civic_priority?: string;
+    capital_symbol?: string;
+    national_motto?: string;
+    faction_balance?: string;
+    external_threat?: string;
+    alliance_goal?: string;
+    cultural_identity?: string;
+    crisis_response?: string;
+    trade_focus?: string;
+    intelligence_policy?: string;
+    migration_policy?: string;
+    succession_law?: string;
   };
 
   stats: {
@@ -29,6 +46,14 @@ export interface NationData {
     technology: number;
     sustainability: number;
     influence: number;
+    diplomacy?: number;
+    intelligence?: number;
+    logistics?: number;
+    culture?: number;
+    cohesion?: number;
+    innovation?: number;
+    security?: number;
+    growth?: number;
   };
 
   resources: {
@@ -38,6 +63,11 @@ export interface NationData {
     energy: number;
     population?: number;
     territory?: number;
+    research?: number;
+    culture_points?: number;
+    intel?: number;
+    logistics_cap?: number;
+    legitimacy?: number;
   };
 
   status: {
@@ -53,6 +83,19 @@ export interface NationData {
 
   // 👇 [여기!] 이 줄을 꼭 추가해주세요! 👇
   tags: string[];
+
+  strategic_profile?: {
+    doctrines: {
+      military?: string;
+      diplomacy?: string;
+      economy?: string;
+      technology?: string;
+      security?: string;
+    };
+    internal_links?: string[];
+    external_links?: string[];
+    synergy_effects?: string[];
+  };
 }
 
 export function useNation(uid: string | null) {

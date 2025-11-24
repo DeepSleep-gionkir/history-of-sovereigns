@@ -81,28 +81,6 @@ export default function LoginPage() {
           Google 계정으로 로그인하여 건국을 시작하세요.
         </p>
 
-        <div
-          style={{
-            margin: "0 auto 16px",
-            maxWidth: "440px",
-            textAlign: "left",
-            fontSize: "0.95rem",
-            color: "var(--text-sub)",
-            background: "rgba(255,255,255,0.03)",
-            padding: "12px 14px",
-            borderRadius: "12px",
-            border: "1px solid var(--stroke-soft)",
-            lineHeight: 1.6,
-          }}
-        >
-          <strong style={{ color: "var(--accent-gold)" }}>플레이 규칙</strong>
-          <ul style={{ margin: "8px 0 0 18px", padding: 0, lineHeight: 1.5 }}>
-            <li>1인 1국가 — 리롤/재생성 불가</li>
-            <li>건국 후 모든 명령은 되돌릴 수 없습니다</li>
-            <li>관리자는 별도 승인된 UID만 가능합니다</li>
-          </ul>
-        </div>
-
         <button
           onClick={handleLogin}
           className="btn-primary"

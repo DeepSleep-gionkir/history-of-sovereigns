@@ -24,6 +24,22 @@ type FoundingForm = {
   social_atmosphere: string;
   origin: string;
   weakness: string;
+  military_doctrine: string;
+  diplomatic_posture: string;
+  tech_ethics: string;
+  resource_strategy: string;
+  civic_priority: string;
+  capital_symbol: string;
+  national_motto: string;
+  faction_balance: string;
+  external_threat: string;
+  alliance_goal: string;
+  cultural_identity: string;
+  crisis_response: string;
+  trade_focus: string;
+  intelligence_policy: string;
+  migration_policy: string;
+  succession_law: string;
 };
 
 export default function NationCreation({ uid }: Props) {
@@ -36,6 +52,22 @@ export default function NationCreation({ uid }: Props) {
     social_atmosphere: "",
     origin: "",
     weakness: "",
+    military_doctrine: "Mobile Offense (기동 공세)",
+    diplomatic_posture: "Pragmatic Treaties (실용 조약)",
+    tech_ethics: "Open Innovation (개방 혁신)",
+    resource_strategy: "Distributed Stockpiles (분산 비축)",
+    civic_priority: "Welfare First (복지 우선)",
+    capital_symbol: "",
+    national_motto: "",
+    faction_balance: "",
+    external_threat: "",
+    alliance_goal: "",
+    cultural_identity: "",
+    crisis_response: "",
+    trade_focus: "Maritime Trade (해상 무역)",
+    intelligence_policy: "Covert Ops (은밀 작전)",
+    migration_policy: "Selective (선별 수용)",
+    succession_law: "Meritocratic Appointment (실력 검증)",
   });
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +75,14 @@ export default function NationCreation({ uid }: Props) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const questions: { key: keyof FoundingForm; title: string; placeholder: string; type?: "select" | "textarea" | "text"; options?: string[] }[] = [
+  const questions: {
+    key: keyof FoundingForm;
+    title: string;
+    placeholder: string;
+    type?: "select" | "textarea" | "text";
+    options?: string[];
+    rows?: number;
+  }[] = [
     {
       key: "name",
       title: "국가명 (필수)",
@@ -80,6 +119,7 @@ export default function NationCreation({ uid }: Props) {
         "Democracy (민주 공화정)",
         "Theocracy (신정 일치)",
         "AI Governance (AI 통제)",
+        "Corporate State (기업 주도)",
       ],
     },
     {
@@ -92,25 +132,186 @@ export default function NationCreation({ uid }: Props) {
         "Industry (공업 중심)",
         "Military (군수 산업)",
         "Trade (무역 중심)",
+        "Research (연구 중심)",
       ],
     },
     {
       key: "social_atmosphere",
-      title: "사회적 분위기 (50자)",
+      title: "사회적 분위기 (70자)",
       placeholder: "예: 엄격하고 규율을 중시함",
       type: "text",
     },
     {
       key: "origin",
-      title: "국가의 기원 (100자)",
+      title: "국가의 기원 (200자)",
       placeholder: "이 국가는 어떻게 시작되었습니까?",
       type: "textarea",
+      rows: 4,
     },
     {
       key: "weakness",
       title: "치명적 약점",
       placeholder: "예: 해상 전력이 전무함, 식량 부족",
       type: "text",
+    },
+    {
+      key: "military_doctrine",
+      title: "군사 교리",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Mobile Offense (기동 공세)",
+        "Fortified Defense (요새 방어)",
+        "Naval Supremacy (제해권)",
+        "Proxy Warfare (대리전)",
+        "Long War Logistics (장기 보급전)",
+      ],
+    },
+    {
+      key: "diplomatic_posture",
+      title: "외교 태세",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Pragmatic Treaties (실용 조약)",
+        "Ideological Bloc (이념 동맹)",
+        "Non-Aligned (비동맹 균형)",
+        "Tributary Network (조공망)",
+        "Isolation w/ Envoys (선별적 고립)",
+      ],
+    },
+    {
+      key: "tech_ethics",
+      title: "기술/마법 윤리",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Open Innovation (개방 혁신)",
+        "Militarized R&D (군사화 연구)",
+        "Sacred Knowledge (신성 지식)",
+        "Guild Secrecy (길드 비밀)",
+        "AI-First Governance (AI 우선)",
+      ],
+    },
+    {
+      key: "resource_strategy",
+      title: "자원 전략",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Distributed Stockpiles (분산 비축)",
+        "Central Vault (중앙 집중)",
+        "Just-In-Time (수요 연동)",
+        "Speculative Trade (투기성 매매)",
+      ],
+    },
+    {
+      key: "trade_focus",
+      title: "무역/교역 특화",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Maritime Trade (해상 무역)",
+        "Caravan & Overland (대륙 교역)",
+        "Resource Futures (자원 선물)",
+        "Cultural Exports (문화 수출)",
+      ],
+    },
+    {
+      key: "civic_priority",
+      title: "내치 우선순위",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Welfare First (복지 우선)",
+        "Security First (치안 우선)",
+        "Urban Megaprojects (대규모 인프라)",
+        "Education Surge (교육/연구)",
+        "Faith & Order (신앙/질서)",
+      ],
+    },
+    {
+      key: "intelligence_policy",
+      title: "첩보/정보 기조",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Covert Ops (은밀 작전)",
+        "Counterintel Fortress (방어 우선)",
+        "Open Source Signals (개방 정보망)",
+        "Mercenary Spies (용병 첩보)",
+      ],
+    },
+    {
+      key: "migration_policy",
+      title: "이주/정착 정책",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Selective (선별 수용)",
+        "Open Doors (개방 이민)",
+        "Closed Borders (봉쇄)",
+        "Skilled Talent Drive (기술 인재 집중)",
+      ],
+    },
+    {
+      key: "succession_law",
+      title: "승계 법칙",
+      placeholder: "선택하세요",
+      type: "select",
+      options: [
+        "Meritocratic Appointment (실력 검증)",
+        "Hereditary Primogeniture (혈통 장자)",
+        "Council Election (평의회 선출)",
+        "Oracle Selection (신탁 임명)",
+      ],
+    },
+    {
+      key: "capital_symbol",
+      title: "수도 상징/지형",
+      placeholder: "예: 부유하는 수정탑, 화산 협곡 도시",
+      type: "text",
+    },
+    {
+      key: "national_motto",
+      title: "국가 표어",
+      placeholder: "예: '빛은 우리와 함께한다'",
+      type: "text",
+    },
+    {
+      key: "faction_balance",
+      title: "내부 파벌/계층",
+      placeholder: "예: 상업 귀족 vs. 개혁파 청년 장교단",
+      type: "textarea",
+      rows: 3,
+    },
+    {
+      key: "external_threat",
+      title: "가장 큰 외부 위협",
+      placeholder: "예: 북방 해적 동맹, 사막 약탈단, 금괴 가격 폭락",
+      type: "textarea",
+      rows: 3,
+    },
+    {
+      key: "alliance_goal",
+      title: "동맹/조약 목표",
+      placeholder: "예: 해상 조약 체결, 학술 교류 블록 결성",
+      type: "textarea",
+      rows: 3,
+    },
+    {
+      key: "cultural_identity",
+      title: "문화/정체성 서사",
+      placeholder: "예: 이주민 융합 문화, 고대 제국 계승, 신흥 AI 문화",
+      type: "textarea",
+      rows: 3,
+    },
+    {
+      key: "crisis_response",
+      title: "국가 비상 대응 방식",
+      placeholder: "예: 군 계엄 + 중앙 비축 개방, AI 위기 시나리오 실행",
+      type: "textarea",
+      rows: 3,
     },
   ];
 
@@ -226,7 +427,7 @@ export default function NationCreation({ uid }: Props) {
           </select>
         ) : currentQuestion.type === "textarea" ? (
           <textarea
-            rows={3}
+            rows={currentQuestion.rows || 3}
             placeholder={currentQuestion.placeholder}
             value={formData[currentQuestion.key]}
             onChange={(e) => updateAnswer(currentQuestion.key, e.target.value)}

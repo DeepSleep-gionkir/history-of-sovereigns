@@ -15,6 +15,17 @@ import {
   FaHashtag, // 아이콘 추가
   FaUsers,
   FaMapMarkerAlt,
+  FaFlask,
+  FaPalette,
+  FaCrown,
+  FaGlobeAmericas,
+  FaEye,
+  FaTruck,
+  FaBook,
+  FaLightbulb,
+  FaLock,
+  FaSeedling,
+  FaUsersCog,
 } from "react-icons/fa";
 import {
   GiHeartInside,
@@ -128,6 +139,20 @@ export default function Dashboard({ data, uid }: Props) {
         "국경 지역 야전시장을 열어 잉여 식량 80을 팔고 금화 60을 확보한다. 도적을 막기 위해 경비를 배치한다.",
     },
   ];
+
+  const doctrineEntries = Object.entries(data.strategic_profile?.doctrines || {}).filter(
+    ([, val]) => Boolean(val)
+  );
+  const doctrineLabelMap: Record<string, string> = {
+    military: "군사",
+    diplomacy: "외교",
+    economy: "경제",
+    technology: "기술",
+    security: "보안",
+  };
+  const internalLinks = data.strategic_profile?.internal_links || [];
+  const externalLinks = data.strategic_profile?.external_links || [];
+  const synergyEffects = data.strategic_profile?.synergy_effects || [];
 
   const cooldownBase = data.status?.cooldown_seconds || 180;
   const shieldRemaining = data.status?.shield_until
@@ -377,6 +402,31 @@ export default function Dashboard({ data, uid }: Props) {
                 value={data.resources.territory || 0}
                 label="영토"
               />
+              <ResourceItem
+                icon={<FaFlask color="#9ad6f3" />}
+                value={data.resources.research || 0}
+                label="연구"
+              />
+              <ResourceItem
+                icon={<FaPalette color="#f2c27b" />}
+                value={data.resources.culture_points || 0}
+                label="문화"
+              />
+              <ResourceItem
+                icon={<FaEye color="#9fb3ff" />}
+                value={data.resources.intel || 0}
+                label="첩보"
+              />
+              <ResourceItem
+                icon={<FaTruck color="#7dcfae" />}
+                value={data.resources.logistics_cap || 0}
+                label="물류"
+              />
+              <ResourceItem
+                icon={<FaCrown color="#e2c78a" />}
+                value={data.resources.legitimacy || 0}
+                label="정통성"
+              />
             </div>
           </div>
 
@@ -467,6 +517,91 @@ export default function Dashboard({ data, uid }: Props) {
                 label="영향력"
                 value={data.stats.influence}
               />
+              <StatCard
+                icon={<FaGlobeAmericas />}
+                label="외교"
+                value={data.stats.diplomacy ?? 0}
+              />
+              <StatCard
+                icon={<FaEye />}
+                label="첩보"
+                value={data.stats.intelligence ?? 0}
+              />
+              <StatCard
+                icon={<FaTruck />}
+                label="물류"
+                value={data.stats.logistics ?? 0}
+              />
+              <StatCard
+                icon={<FaBook />}
+                label="문화"
+                value={data.stats.culture ?? 0}
+              />
+              <StatCard
+                icon={<FaUsersCog />}
+                label="결속"
+                value={data.stats.cohesion ?? 0}
+              />
+              <StatCard
+                icon={<FaLightbulb />}
+                label="혁신"
+                value={data.stats.innovation ?? 0}
+              />
+              <StatCard
+                icon={<FaLock />}
+                label="보안"
+                value={data.stats.security ?? 0}
+              />
+              <StatCard
+                icon={<FaSeedling />}
+                label="성장"
+                value={data.stats.growth ?? 0}
+              />
+            </div>
+          </div>
+
+          <div
+            className="card"
+            style={{
+              background: "var(--bg-card-strong)",
+              border: "1px solid var(--stroke-soft)",
+            }}
+          >
+            <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
+              전략 교리 & 연결망
+            </h3>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginBottom: "10px",
+              }}
+            >
+              {doctrineEntries.length > 0 ? (
+                doctrineEntries.map(([key, val]) => (
+                  <StatusChip
+                    key={key}
+                    label={doctrineLabelMap[key] || key}
+                    value={String(val)}
+                    tone="info"
+                  />
+                ))
+              ) : (
+                <StatusChip label="교리" value="아직 없음" tone="muted" />
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <ProfileList title="내부 연결" items={internalLinks} />
+              <ProfileList title="외부 연결" items={externalLinks} />
+              <ProfileList title="시너지/효과" items={synergyEffects} />
             </div>
           </div>
         </div>
@@ -744,6 +879,43 @@ function StatCard({ icon, label, value }: StatProps) {
       <span style={{ fontWeight: "bold", fontSize: "1.05rem", color: "var(--text-main)" }}>
         {value}
       </span>
+    </div>
+  );
+}
+
+function ProfileList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--stroke-soft)",
+        borderRadius: "12px",
+        padding: "12px",
+        background: "rgba(255,255,255,0.03)",
+        minHeight: "150px",
+      }}
+    >
+      <div style={{ fontWeight: "bold", marginBottom: "8px", color: "var(--text-main)" }}>
+        {title}
+      </div>
+      {items && items.length > 0 ? (
+        <ul
+          style={{
+            margin: 0,
+            paddingLeft: "18px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            color: "var(--text-sub)",
+            lineHeight: 1.4,
+          }}
+        >
+          {items.map((item, idx) => (
+            <li key={`${title}-${idx}`}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <div style={{ color: "var(--text-sub)", fontSize: "0.9rem" }}>기록 없음</div>
+      )}
     </div>
   );
 }
