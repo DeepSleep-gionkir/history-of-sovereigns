@@ -72,11 +72,15 @@ export async function POST(request: Request) {
       "succession_law",
     ];
 
+    if (!uid || !answers) {
+      return NextResponse.json({ error: "필수 정보 누락" }, { status: 400 });
+    }
+
     const missing = requiredFields.filter(
-      (key) => !answers?.[key] || !String(answers?.[key] || "").trim()
+      (key) => !answers[key] || !String(answers[key] || "").trim()
     );
 
-    if (!uid || missing.length > 0) {
+    if (missing.length > 0) {
       return NextResponse.json(
         { error: `필수 정보 누락: ${missing.join(", ")}` },
         { status: 400 }
@@ -94,11 +98,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const fallbackProfile = buildInitialProfile(answers);
+    const safeAnswers = answers as FoundingAnswers;
+
+    const fallbackProfile = buildInitialProfile(safeAnswers);
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-    const prompt = buildPrompt(answers, fallbackProfile);
+    const prompt = buildPrompt(safeAnswers, fallbackProfile);
 
     type AiResult = {
       description?: string;
@@ -173,39 +179,39 @@ export async function POST(request: Request) {
     const nationData = {
       uid,
       identity: {
-        name: answers.name.trim(),
-        ruler_title: answers.ruler_title.trim(),
+        name: safeAnswers.name.trim(),
+        ruler_title: safeAnswers.ruler_title.trim(),
         description:
           aiResult.description ||
-          answers.origin ||
+          safeAnswers.origin ||
           "미상의 기원을 가진 새 왕조",
         flag_color: aiResult.flag_color || "#d4af37",
       },
       stats,
       resources,
       attributes: {
-        climate: answers.climate,
-        politics: answers.politics,
-        economy_type: answers.economy_type,
-        social_atmosphere: answers.social_atmosphere,
-        weakness: answers.weakness,
-        origin: answers.origin,
-        military_doctrine: answers.military_doctrine,
-        diplomatic_posture: answers.diplomatic_posture,
-        tech_ethics: answers.tech_ethics,
-        resource_strategy: answers.resource_strategy,
-        civic_priority: answers.civic_priority,
-        capital_symbol: answers.capital_symbol,
-        national_motto: answers.national_motto,
-        faction_balance: answers.faction_balance,
-        external_threat: answers.external_threat,
-        alliance_goal: answers.alliance_goal,
-        cultural_identity: answers.cultural_identity,
-        crisis_response: answers.crisis_response,
-        trade_focus: answers.trade_focus,
-        intelligence_policy: answers.intelligence_policy,
-        migration_policy: answers.migration_policy,
-        succession_law: answers.succession_law,
+        climate: safeAnswers.climate,
+        politics: safeAnswers.politics,
+        economy_type: safeAnswers.economy_type,
+        social_atmosphere: safeAnswers.social_atmosphere,
+        weakness: safeAnswers.weakness,
+        origin: safeAnswers.origin,
+        military_doctrine: safeAnswers.military_doctrine,
+        diplomatic_posture: safeAnswers.diplomatic_posture,
+        tech_ethics: safeAnswers.tech_ethics,
+        resource_strategy: safeAnswers.resource_strategy,
+        civic_priority: safeAnswers.civic_priority,
+        capital_symbol: safeAnswers.capital_symbol,
+        national_motto: safeAnswers.national_motto,
+        faction_balance: safeAnswers.faction_balance,
+        external_threat: safeAnswers.external_threat,
+        alliance_goal: safeAnswers.alliance_goal,
+        cultural_identity: safeAnswers.cultural_identity,
+        crisis_response: safeAnswers.crisis_response,
+        trade_focus: safeAnswers.trade_focus,
+        intelligence_policy: safeAnswers.intelligence_policy,
+        migration_policy: safeAnswers.migration_policy,
+        succession_law: safeAnswers.succession_law,
       },
       strategic_profile: {
         doctrines,
