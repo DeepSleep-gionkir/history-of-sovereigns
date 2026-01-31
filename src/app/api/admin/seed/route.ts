@@ -58,9 +58,13 @@ export async function POST() {
         id,
         name: info.name,
         description: info.description,
-        imagePath: SVGS[info.svgIndex],
-        maxNations: 20,
-        currentNations: 0, // Should be updated based on real count if needed, but 0 for seed
+        vectorPath: SVGS[info.svgIndex],
+        themeColor: "#E7C676", // Default gold theme
+        capacity: {
+          max: 20,
+          current: 0,
+        },
+        tags: ["System", "Genesis"],
         createdAt: serverTimestamp() as unknown as DbDate,
         isSystem: true,
       };

@@ -4,12 +4,17 @@ import { useState, useEffect } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNation } from "@/hooks/useNation";
-import NationCreation from "@/components/NationCreation";
-import Dashboard from "@/components/Dashboard";
+import Dashboard from "@/components/DashboardV2";
+import AtlasEngine from "@/components/atlas/AtlasEngine";
 
 import RankingBoard from "@/components/RankingBoard";
 import GameOver from "@/components/GameOver"; // 추가
-import { FaFortAwesome, FaTrophy, FaUserShield } from "react-icons/fa";
+import {
+  FaFortAwesome,
+  FaTrophy,
+  FaUserShield,
+  FaGlobeAmericas,
+} from "react-icons/fa";
 import Link from "next/link"; // 페이지 이동용 링크
 import { useRouter } from "next/navigation";
 
@@ -141,7 +146,12 @@ export default function Home() {
     return (
       <div className="page-shell" style={{ position: "relative" }}>
         {accountBar}
-        <NationCreation uid={user.uid} />
+        <div className="py-8">
+          <AtlasEngine
+            uid={user.uid}
+            onSelect={(id: string) => console.log("Selected Continent:", id)}
+          />
+        </div>
       </div>
     );
   }
@@ -286,9 +296,7 @@ export default function Home() {
       {accountBar}
 
       <div style={{ paddingBottom: "90px" }}>
-        {currentTab === "dashboard" && (
-          <Dashboard data={nation} uid={user.uid} />
-        )}
+        {currentTab === "dashboard" && <Dashboard data={nation} />}
 
         {currentTab === "ranking" && (
           <div
@@ -301,6 +309,15 @@ export default function Home() {
             <RankingBoard />
           </div>
         )}
+
+        {currentTab === "atlas" && (
+          <div className="py-4">
+            <AtlasEngine
+              uid={user.uid}
+              onSelect={(id: string) => console.log("Viewing Continent:", id)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="nav-bar">
@@ -311,7 +328,13 @@ export default function Home() {
           <FaFortAwesome size={18} />
           <span style={{ fontSize: "0.85rem" }}>본국</span>
         </button>
-        {/* TODO: 대륙 지도/탐험 탭 추가 예정 */}
+        <button
+          onClick={() => setCurrentTab("atlas")}
+          className={`nav-btn ${currentTab === "atlas" ? "active" : ""}`}
+        >
+          <FaGlobeAmericas size={18} />
+          <span style={{ fontSize: "0.85rem" }}>지도</span>
+        </button>
         <button
           onClick={() => setCurrentTab("ranking")}
           className={`nav-btn ${currentTab === "ranking" ? "active" : ""}`}

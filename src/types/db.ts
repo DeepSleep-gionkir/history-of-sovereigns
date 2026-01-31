@@ -4,11 +4,22 @@ export interface Continent {
   id: string;
   name: string;
   description: string;
-  imagePath: string; // SVG path data (d attribute) or full SVG string
-  maxNations: number;
-  currentNations: number;
-  createdAt: DbDate; // Firestore Timestamp or Date or string
+
+  // Visuals
+  vectorPath: string; // Normalized SVG Path (0 0 600 600) - TDD said 100 but legacy used 600, sticking to 600 for compat or 100? Let's use 600 to match current templates for now.
+  themeColor: string; // Hex code
+
+  // Meta
+  capacity: {
+    max: number;
+    current: number;
+  };
+  tags: string[];
+
+  // Ownership
   isSystem: boolean;
+  creatorUid?: string;
+  createdAt: DbDate;
 }
 
 export interface FactionState {

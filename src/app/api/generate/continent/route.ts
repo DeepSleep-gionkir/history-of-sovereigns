@@ -39,13 +39,17 @@ export async function POST(request: Request) {
     1. 대륙의 이름 (한국어 + 영어 병기, 예: "신비의 땅 (Mystic Lands)")
     2. 설명 (2~3문장, 대륙의 분위기, 기후, 특징 묘사)
     3. 위 템플릿 목록 중 가장 어울리는 templateIndex (0~${CONTINENT_TEMPLATES.length - 1}) 정수 값 선택
+    4. 대륙의 테마 색상 (Hex Code, 예: "#E7C676")
+    5. 대륙의 특징 태그 3개 (예: ["Volcanic", "Magic-Rich", "Dangerous"])
 
     [출력 형태]
     JSON 포맷만 출력하세요. 마크다운 코드 블록 없이 순수 JSON 문자열만.
     {
       "name": "...",
       "description": "...",
-      "templateIndex": 0
+      "templateIndex": 0,
+      "themeColor": "#...",
+      "tags": ["...", "..."]
     }
     `;
 
@@ -61,7 +65,13 @@ export async function POST(request: Request) {
       .replace(/```/g, "")
       .trim();
 
-    let aiData: { name: string; description: string; templateIndex: number };
+    let aiData: {
+      name: string;
+      description: string;
+      templateIndex: number;
+      themeColor: string;
+      tags: string[];
+    };
     try {
       aiData = JSON.parse(cleanJson);
     } catch (e: unknown) {
@@ -80,32 +90,28 @@ export async function POST(request: Request) {
     }
     const template = CONTINENT_TEMPLATES[tIndex];
 
-    // Check capacity limit? Maybe limit total custom continents? ignoring for now.
-
     const newContinent: Continent = {
       id: `custom_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name: aiData.name,
       description: aiData.description,
-      imagePath: template.path, // We store the path directly. Or template ID provided we have a lookup. TDD said imagePath.
-      maxNations: 15, // Custom continents might be smaller? Or standard 20.
-      currentNations: 0,
-      createdAt: new Date().toISOString(), // Using ISO string for client compat or Firestore Timestamp if using admin SDK properly?
-      // TDD said Timestamp, but interface said 'any'. Let's use ISO string for simplicity in JSON, or Firestore Timestamp.
-      // Firestore will convert Date object to Timestamp.
+      vectorPath: template.path,
+      themeColor: aiData.themeColor || "#E7C676",
+      capacity: {
+        max: 15,
+        current: 0,
+      },
+      tags: aiData.tags || [],
+      createdAt: new Date().toISOString(),
       isSystem: false,
     };
 
-    // Save to Firestore
-    // Note: 'createdAt' in Firestore is usually a Timestamp.
-    // adminDb.collection('continents').doc(newContinent.id).set(...)
-    // I'll cast it to any to avoid TS issues with the interface if it expects specific types.
     await adminDb
       .collection("continents")
       .doc(newContinent.id)
       .set({
         ...newContinent,
-        creatorUid: uid, // Track who discovered it
-        createdAt: new Date(), // Use server Date
+        creatorUid: uid,
+        createdAt: new Date(), // Firestore Timestamp
       });
 
     return NextResponse.json({ success: true, continent: newContinent });
