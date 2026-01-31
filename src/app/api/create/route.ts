@@ -29,8 +29,9 @@ type FoundingAnswers = {
   succession_law: string;
 };
 
-const MAP_SIZE = 20; // 20x20 기본 맵
-const DEFAULT_COOLDOWN = 180;
+// MAP_SIZE removed
+
+const DEFAULT_COOLDOWN = 60;
 
 export async function POST(request: Request) {
   try {
@@ -38,12 +39,15 @@ export async function POST(request: Request) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY가 설정되지 않았습니다." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const body = await request.json();
-    const { uid, answers } = body as { uid?: string; answers?: FoundingAnswers };
+    const { uid, answers } = body as {
+      uid?: string;
+      answers?: FoundingAnswers & { continentId?: string };
+    };
 
     const requiredFields: (keyof FoundingAnswers)[] = [
       "name",
@@ -76,30 +80,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "필수 정보 누락" }, { status: 400 });
     }
 
+    if (!answers.continentId) {
+      return NextResponse.json(
+        { error: "대륙을 선택해야 합니다." },
+        { status: 400 },
+      );
+    }
+
     const missing = requiredFields.filter(
-      (key) => !answers[key] || !String(answers[key] || "").trim()
+      (key) => !answers[key] || !String(answers[key] || "").trim(),
     );
 
     if (missing.length > 0) {
       return NextResponse.json(
         { error: `필수 정보 누락: ${missing.join(", ")}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     await verifyUserFromRequest(request, uid);
 
+    // Pre-flight check
     const nationRef = adminDb.collection("nations").doc(uid);
     const existing = await nationRef.get();
     if (existing.exists) {
       return NextResponse.json(
         { error: "이미 국가가 존재합니다. (1인 1국가 규칙)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const safeAnswers = answers as FoundingAnswers;
-
     const fallbackProfile = buildInitialProfile(safeAnswers);
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -124,7 +135,10 @@ export async function POST(request: Request) {
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const cleanJson = text
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
       aiResult = JSON.parse(cleanJson);
     } catch (e) {
       console.error("Create AI 응답 파싱 실패, 폴백을 사용합니다.", e);
@@ -139,14 +153,17 @@ export async function POST(request: Request) {
       ...sanitizeNumbers(aiResult.resources || {}, 0, 99999),
     };
     resources.territory = 1;
-    resources.population = resources.population ?? fallbackProfile.resources.population;
-    resources.research = resources.research ?? fallbackProfile.resources.research;
+    resources.population =
+      resources.population ?? fallbackProfile.resources.population;
+    resources.research =
+      resources.research ?? fallbackProfile.resources.research;
     resources.culture_points =
       resources.culture_points ?? fallbackProfile.resources.culture_points;
     resources.intel = resources.intel ?? fallbackProfile.resources.intel;
     resources.logistics_cap =
       resources.logistics_cap ?? fallbackProfile.resources.logistics_cap;
-    resources.legitimacy = resources.legitimacy ?? fallbackProfile.resources.legitimacy;
+    resources.legitimacy =
+      resources.legitimacy ?? fallbackProfile.resources.legitimacy;
 
     const internal_links =
       (aiResult.internal_links && aiResult.internal_links.length > 0
@@ -168,16 +185,17 @@ export async function POST(request: Request) {
         aiResult.doctrines?.diplomacy || fallbackProfile.doctrines.diplomacy,
       technology:
         aiResult.doctrines?.technology || fallbackProfile.doctrines.technology,
-      economy:
-        aiResult.doctrines?.economy || fallbackProfile.doctrines.economy,
+      economy: aiResult.doctrines?.economy || fallbackProfile.doctrines.economy,
       security:
         aiResult.doctrines?.security || fallbackProfile.doctrines.security,
     };
 
-    const shieldHours = 4 + Math.round(Math.random() * 4);
+    const shieldHours = 72; // Initial shield increased to 72 hours (3 days)
     const creationTime = new Date().toISOString();
+
     const nationData = {
       uid,
+      continentId: answers.continentId, // Save continent ID
       identity: {
         name: safeAnswers.name.trim(),
         ruler_title: safeAnswers.ruler_title.trim(),
@@ -221,44 +239,84 @@ export async function POST(request: Request) {
       },
       status: {
         last_action_at: new Date(
-          Date.now() - DEFAULT_COOLDOWN * 1000
+          Date.now() - DEFAULT_COOLDOWN * 1000,
         ).toISOString(),
         cooldown_seconds: DEFAULT_COOLDOWN,
         is_online: true,
         is_poverty: false,
         is_alive: true,
         shield_until: new Date(
-          Date.now() + shieldHours * 60 * 60 * 1000
+          Date.now() + shieldHours * 60 * 60 * 1000,
         ).toISOString(),
+      },
+      factions: {
+        military: { name: "Military", power: 25, loyalty: 50 },
+        nobility: { name: "Nobility", power: 25, loyalty: 50 },
+        commoners: { name: "Commoners", power: 25, loyalty: 50 },
+        intelligentsia: { name: "Intelligentsia", power: 25, loyalty: 50 },
+      },
+      policies: {
+        tax: "standard",
+        conscription: "none",
+        economy: "mixed",
+        border: "regulated",
       },
       tags: mergeTags(fallbackProfile.tags, aiResult.tags),
       created_at: creationTime,
     };
 
-    await nationRef.set(nationData);
-    const capitalResult = await assignCapitalTile(uid);
+    // Run Transaction to save nation and update continent capacity
+    const continentRef = adminDb
+      .collection("continents")
+      .doc(answers.continentId);
 
-    await nationRef.collection("logs").add({
-      command: "국가 건국 (Founding)",
-      narrative:
-        aiResult.narrative ||
-        "새로운 주권 국가가 탄생했습니다. AI가 초기 프로필을 설정했습니다.",
-      created_at: creationTime,
+    await adminDb.runTransaction(async (t) => {
+      const cSnap = await t.get(continentRef);
+      if (!cSnap.exists) {
+        throw new Error("존재하지 않는 대륙입니다.");
+      }
+      const cData = cSnap.data();
+      const current = cData?.currentNations || 0;
+      const max = cData?.maxNations || 20;
+
+      if (current >= max) {
+        throw new Error("대륙의 정원이 초과되어 건국할 수 없습니다.");
+      }
+
+      const nSnap = await t.get(nationRef);
+      if (nSnap.exists) {
+        throw new Error("이미 국가가 존재합니다.");
+      }
+
+      t.update(continentRef, { currentNations: current + 1 });
+      t.set(nationRef, nationData);
+
+      const logRef = nationRef.collection("logs").doc();
+      t.set(logRef, {
+        command: "국가 건국 (Founding)",
+        narrative:
+          aiResult.narrative ||
+          "새로운 주권 국가가 탄생했습니다. AI가 초기 프로필을 설정했습니다.",
+        created_at: creationTime,
+      });
     });
 
     return NextResponse.json({
       success: true,
       nation: nationData,
-      capital: capitalResult,
+      // capital: capitalResult, // Removed capital tile logic
     });
   } catch (error: unknown) {
     if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     console.error("Create API 오류:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "국가 생성 실패" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -352,35 +410,6 @@ function mergeTags(base: string[], aiTags: unknown) {
   return Array.from(tags).slice(0, 12);
 }
 
-async function assignCapitalTile(uid: string) {
-  // 여유 자리가 없을 수도 있으니 최대 30회 시도
-  for (let i = 0; i < 30; i++) {
-    const q = Math.floor(Math.random() * MAP_SIZE);
-    const r = Math.floor(Math.random() * MAP_SIZE);
-    const tileId = `${r}_${q}`;
-    const tileRef = adminDb.collection("tiles").doc(tileId);
-
-    const res = await adminDb.runTransaction(async (tx) => {
-      const snap = await tx.get(tileRef);
-      const data = snap.data();
-
-      if ((!snap.exists || !data?.owner) && data?.type !== "ocean") {
-        tx.set(
-          tileRef,
-          snap.exists
-            ? { ...data, owner: uid, type: "capital", resource: "gold" }
-            : { q, r, owner: uid, type: "capital", resource: "gold" }
-        );
-        return { tileId, q, r };
-      }
-      return null;
-    });
-
-    if (res) return res;
-  }
-  throw new Error("빈 땅을 찾지 못했습니다. 관리자에게 문의하세요.");
-}
-
 type StatBlock = {
   stability: number;
   economy: number;
@@ -397,6 +426,11 @@ type StatBlock = {
   innovation: number;
   security: number;
   growth: number;
+  // Grand Strategy Additions
+  admin_cap: number;
+  corruption: number;
+  reputation: number;
+  legitimacy: number;
 };
 
 type DoctrineBlock = {
@@ -434,6 +468,10 @@ function buildInitialProfile(form: FoundingAnswers): ExpandedProfile {
     innovation: 50,
     security: 50,
     growth: 50,
+    admin_cap: 50, // Base capacity
+    corruption: 10, // Base corruption
+    reputation: 50,
+    legitimacy: 50,
   };
 
   applyChoiceAdjustments(base, form);
@@ -861,7 +899,8 @@ function deriveResources(stats: StatBlock) {
     culture_points: 60 + Math.round((stats.culture + stats.happiness) / 2),
     intel: 50 + Math.round((stats.intelligence + stats.security) / 2),
     logistics_cap: 70 + Math.round((stats.logistics + stats.stability) / 3),
-    legitimacy: 60 + Math.round((stats.cohesion + stats.stability + stats.influence) / 3),
+    legitimacy:
+      60 + Math.round((stats.cohesion + stats.stability + stats.influence) / 3),
     territory: 1,
   };
 }
@@ -913,7 +952,8 @@ function deriveTags(form: FoundingAnswers) {
 
   const weakness = form.weakness.toLowerCase();
   if (weakness.includes("식량")) tags.add("기근 위험");
-  if (weakness.includes("해상") || weakness.includes("바다")) tags.add("해상 취약");
+  if (weakness.includes("해상") || weakness.includes("바다"))
+    tags.add("해상 취약");
   if (weakness.includes("부패")) tags.add("부패 문제");
 
   if (form.military_doctrine.includes("Naval")) tags.add("제해권 추구");

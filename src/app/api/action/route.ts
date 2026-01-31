@@ -7,9 +7,9 @@ import {
   verifyUserFromRequest,
 } from "@/lib/firebaseAdmin";
 
-const COOLDOWN_SECONDS = 180;
-const MIN_COOLDOWN = 120;
-const MAX_COOLDOWN = 240;
+const COOLDOWN_SECONDS = 60;
+const MIN_COOLDOWN = 60;
+const MAX_COOLDOWN = 60;
 
 export async function POST(request: Request) {
   try {
@@ -192,12 +192,50 @@ export async function POST(request: Request) {
 
     if (resultData.changes) {
       const allowedPrefixes = ["resources.", "stats.", "status."];
+      const resourceKeys = new Set([
+        "gold",
+        "food",
+        "materials",
+        "energy",
+        "population",
+        "territory",
+        "research",
+        "culture_points",
+        "intel",
+        "logistics_cap",
+        "legitimacy",
+      ]);
+      const statKeys = new Set([
+        "stability",
+        "economy",
+        "military",
+        "happiness",
+        "technology",
+        "sustainability",
+        "influence",
+        "diplomacy",
+        "intelligence",
+        "logistics",
+        "culture",
+        "cohesion",
+        "innovation",
+        "security",
+        "growth",
+      ]);
+      const statusKeys = new Set(["cooldown_seconds", "shield_until", "last_action_at"]);
+
       for (const [key, value] of Object.entries(resultData.changes)) {
-        if (
-          allowedPrefixes.some((prefix) => key.startsWith(prefix)) &&
-          typeof value === "number"
-        ) {
-          updateData[key] = FieldValue.increment(Number(value));
+        if (typeof value !== "number") continue;
+
+        let targetKey = key;
+        if (!allowedPrefixes.some((prefix) => key.startsWith(prefix))) {
+          if (resourceKeys.has(key)) targetKey = `resources.${key}`;
+          else if (statKeys.has(key)) targetKey = `stats.${key}`;
+          else if (statusKeys.has(key)) targetKey = `status.${key}`;
+        }
+
+        if (allowedPrefixes.some((prefix) => targetKey.startsWith(prefix))) {
+          updateData[targetKey] = FieldValue.increment(Number(value));
         }
       }
     }

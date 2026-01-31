@@ -6,15 +6,10 @@ import { auth } from "@/lib/firebase";
 import { useNation } from "@/hooks/useNation";
 import NationCreation from "@/components/NationCreation";
 import Dashboard from "@/components/Dashboard";
-import WorldMap from "@/components/WorldMap";
+
 import RankingBoard from "@/components/RankingBoard";
 import GameOver from "@/components/GameOver"; // 추가
-import {
-  FaFortAwesome,
-  FaGlobeAmericas,
-  FaTrophy,
-  FaUserShield,
-} from "react-icons/fa";
+import { FaFortAwesome, FaTrophy, FaUserShield } from "react-icons/fa";
 import Link from "next/link"; // 페이지 이동용 링크
 import { useRouter } from "next/navigation";
 
@@ -295,38 +290,13 @@ export default function Home() {
           <Dashboard data={nation} uid={user.uid} />
         )}
 
-        {currentTab === "map" && (
-          <div
-            className="card"
-            style={{ borderColor: "var(--stroke-soft)", background: "var(--bg-card-strong)" }}
-          >
-            <h2
-              className="headline"
-              style={{
-                fontSize: "1.5rem",
-                marginBottom: "12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                fontFamily: "'Noto Serif KR', serif",
-              }}
-            >
-              <FaGlobeAmericas /> 세계 지도
-            </h2>
-            <p
-              className="subhead"
-              style={{ marginBottom: "12px", color: "var(--text-sub)" }}
-            >
-              10,000 타일의 서사 지도. 영토를 선택해 개척, 침공, 정찰을 실행하세요.
-            </p>
-            <WorldMap myNation={nation} />
-          </div>
-        )}
-
         {currentTab === "ranking" && (
           <div
             className="card"
-            style={{ borderColor: "var(--stroke-soft)", background: "var(--bg-card-strong)" }}
+            style={{
+              borderColor: "var(--stroke-soft)",
+              background: "var(--bg-card-strong)",
+            }}
           >
             <RankingBoard />
           </div>
@@ -341,13 +311,7 @@ export default function Home() {
           <FaFortAwesome size={18} />
           <span style={{ fontSize: "0.85rem" }}>본국</span>
         </button>
-        <button
-          onClick={() => setCurrentTab("map")}
-          className={`nav-btn ${currentTab === "map" ? "active" : ""}`}
-        >
-          <FaGlobeAmericas size={18} />
-          <span style={{ fontSize: "0.85rem" }}>세계지도</span>
-        </button>
+        {/* TODO: 대륙 지도/탐험 탭 추가 예정 */}
         <button
           onClick={() => setCurrentTab("ranking")}
           className={`nav-btn ${currentTab === "ranking" ? "active" : ""}`}

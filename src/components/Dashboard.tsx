@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { NationData } from "@/hooks/useNation";
+import { NationData } from "@/types/db";
 import {
   FaCoins,
   FaBreadSlice,
@@ -39,8 +39,16 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { Continent } from "@/types/db";
+import { parseDbDate } from "@/utils/date";
+import { calculateYields } from "@/utils/gameLogic";
+import PolicyPanel from "./nation/PolicyPanel";
+import StatPanel from "./nation/StatPanel";
+import FactionList from "./nation/FactionList";
 
 interface Props {
   data: NationData;
@@ -57,12 +65,31 @@ interface LogData {
 }
 
 export default function Dashboard({ data, uid }: Props) {
+  const [continent, setContinent] = useState<Continent | null>(null);
   const [cmdInput, setCmdInput] = useState("");
+
+  // Calculate yields
+  const yields = calculateYields(data);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [lastHeadline, setLastHeadline] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [selectedIntent, setSelectedIntent] = useState("general");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "command" | "history"
+  >("overview");
+
+  useEffect(() => {
+    if (data.continentId) {
+      getDoc(doc(db, "continents", data.continentId)).then((snap) => {
+        if (snap.exists()) {
+          setContinent({ id: snap.id, ...snap.data() } as Continent);
+        }
+      });
+    }
+  }, [data.continentId]);
+
   const playbookTemplates = [
     {
       intent: "policy",
@@ -101,7 +128,8 @@ export default function Dashboard({ data, uid }: Props) {
       title: "동해 해상무역",
       reward: "금화 80 / 영향력 +3",
       intent: "diplomacy",
-      prompt: "동해 무역길을 열어 북방에서 금화 80을 들여오고 해군 호송을 붙인다.",
+      prompt:
+        "동해 무역길을 열어 북방에서 금화 80을 들여오고 해군 호송을 붙인다.",
     },
     {
       title: "산악 채굴 조합",
@@ -140,9 +168,9 @@ export default function Dashboard({ data, uid }: Props) {
     },
   ];
 
-  const doctrineEntries = Object.entries(data.strategic_profile?.doctrines || {}).filter(
-    ([, val]) => Boolean(val)
-  );
+  const doctrineEntries = Object.entries(
+    data.strategic_profile?.doctrines || {},
+  ).filter(([, val]) => Boolean(val));
   const doctrineLabelMap: Record<string, string> = {
     military: "군사",
     diplomacy: "외교",
@@ -159,8 +187,8 @@ export default function Dashboard({ data, uid }: Props) {
     ? Math.max(
         0,
         Math.floor(
-          (new Date(data.status.shield_until).getTime() - Date.now()) / 1000
-        )
+          (parseDbDate(data.status.shield_until).getTime() - Date.now()) / 1000,
+        ),
       )
     : 0;
 
@@ -168,7 +196,7 @@ export default function Dashboard({ data, uid }: Props) {
     if (!data.status?.last_action_at) return;
 
     const interval = setInterval(() => {
-      const last = new Date(data.status.last_action_at).getTime();
+      const last = parseDbDate(data.status.last_action_at).getTime();
       const now = Date.now();
       const diff = (now - last) / 1000;
       const remaining = cooldownBase - diff;
@@ -201,7 +229,11 @@ export default function Dashboard({ data, uid }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ uid, command: cmdInput, intent: selectedIntent }),
+        body: JSON.stringify({
+          uid,
+          command: cmdInput,
+          intent: selectedIntent,
+        }),
       });
 
       const json = await res.json();
@@ -266,30 +298,54 @@ export default function Dashboard({ data, uid }: Props) {
                 >
                   <span style={{ color: "#7ad193" }}>●</span> 접속 중
                 </div>
-            <h2
-              style={{
-                color: "var(--text-main)",
-                margin: 0,
-                fontSize: "1.5rem",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {data.identity.name}
-            </h2>
-            <span style={{ fontSize: "0.9rem", color: "var(--text-sub)" }}>
-              {data.identity.description || `${data.identity.ruler_title}의 통치 하에`}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-              justifyContent: "flex-start",
-              minWidth: "240px",
-            }}
-          >
-            <StatusChip label="쿨다운" value={`${cooldownBase}s`} tone="info" />
+                <h2
+                  style={{
+                    color: "var(--text-main)",
+                    margin: 0,
+                    fontSize: "1.5rem",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {data.identity.name}
+                </h2>
+                <span style={{ fontSize: "0.9rem", color: "var(--text-sub)" }}>
+                  {data.identity.description ||
+                    `${data.identity.ruler_title}의 통치 하에`}
+                </span>
+                {continent && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      color: "var(--accent-gold)",
+                    }}
+                  >
+                    <FaGlobeAmericas size={14} />
+                    <span style={{ fontWeight: 600 }}>{continent.name}</span>
+                    <span
+                      style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}
+                    >
+                      에 위치함
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-start",
+                  minWidth: "240px",
+                }}
+              >
+                <StatusChip
+                  label="쿨다운"
+                  value={`${cooldownBase}s`}
+                  tone="info"
+                />
                 <StatusChip
                   label="보호막"
                   value={
@@ -299,6 +355,13 @@ export default function Dashboard({ data, uid }: Props) {
                   }
                   tone={shieldRemaining > 0 ? "safe" : "muted"}
                 />
+                {data.tags && data.tags.length > 0
+                  ? data.tags.map((tag: string, idx: number) => (
+                      <span key={idx} className="tag-chip">
+                        <FaHashtag size={10} color="var(--accent-cyan)" /> {tag}
+                      </span>
+                    ))
+                  : null}
               </div>
             </div>
 
@@ -310,302 +373,407 @@ export default function Dashboard({ data, uid }: Props) {
                 marginTop: "12px",
               }}
             >
-              <StatusChip label="룰" value="리롤 불가 · 1인 1국가" tone="alert" />
-            <StatusChip
-              label="기후"
-              value={data.attributes?.climate || "미상"}
-              tone="info"
-            />
-            <StatusChip
-              label="정치체제"
-              value={data.attributes?.politics || "미상"}
-              tone="muted"
-            />
+              <StatusChip
+                label="룰"
+                value="리롤 불가 · 1인 1국가"
+                tone="alert"
+              />
+              <StatusChip
+                label="기후"
+                value={data.attributes?.climate || "미상"}
+                tone="info"
+              />
+              <StatusChip
+                label="정치체제"
+                value={data.attributes?.politics || "미상"}
+                tone="muted"
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="dashboard-column">
-          <div
-            className="card"
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: "0",
+          margin: "12px 0 18px",
+          borderBottom: "1px solid var(--stroke-soft)",
+        }}
+      >
+        {[
+          { key: "overview", label: "정보" },
+          { key: "command", label: "명령" },
+          { key: "history", label: "연대기" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as typeof activeTab)}
             style={{
-              background: "var(--bg-card-strong)",
-              border: "1px solid var(--stroke-soft)",
+              padding: "10px 8px",
+              border: "none",
+              background: "transparent",
+              color:
+                activeTab === tab.key
+                  ? "var(--accent-gold)"
+                  : "var(--text-sub)",
+              cursor: "pointer",
+              fontWeight: activeTab === tab.key ? 700 : 500,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "1.05rem",
             }}
           >
-            <div
+            {tab.label}
+            <span
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: "10px",
-                flexWrap: "wrap",
-                marginBottom: "10px",
+                display: "block",
+                width: "70%",
+                height: "3px",
+                borderRadius: "999px",
+                background:
+                  activeTab === tab.key ? "var(--accent-gold)" : "transparent",
+                marginBottom: "-2px",
+                transition: "background 0.2s ease",
+              }}
+            />
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <div className="dashboard-grid">
+          <div className="dashboard-column">
+            <div
+              className="card"
+              style={{
+                background: "var(--bg-card-strong)",
+                border: "1px solid var(--stroke-soft)",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "1.05rem" }}>자원 현황</h3>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "10px",
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>핵심 현황</h3>
+                <div />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  marginBottom: "10px",
+                }}
+              >
+                <StatusChip
+                  label="쿨다운"
+                  value={`${cooldownBase}s`}
+                  tone="info"
+                />
+                <StatusChip
+                  label="보호막"
+                  value={
+                    shieldRemaining > 0
+                      ? `${Math.ceil(shieldRemaining / 3600)}h 남음`
+                      : "없음"
+                  }
+                  tone={shieldRemaining > 0 ? "safe" : "muted"}
+                />
+                <StatusChip
+                  label="영토"
+                  value={`${data.resources.territory || 0}칸`}
+                  tone="info"
+                />
+                <StatusChip
+                  label="인구"
+                  value={`${data.resources.population || 0}`}
+                  tone="muted"
+                />
+                <StatusChip
+                  label="정통성"
+                  value={`${data.stats.legitimacy ?? 0}`}
+                  tone="muted"
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: "12px",
+                  alignItems: "stretch",
+                }}
+              >
+                <ResourceItem
+                  icon={<FaCoins color="var(--accent-gold)" />}
+                  value={data.resources.gold}
+                  label="금화"
+                />
+                <ResourceItem
+                  icon={<FaBreadSlice color="#d1b799" />}
+                  value={data.resources.food}
+                  label="식량"
+                />
+                <ResourceItem
+                  icon={<FaCube color="#a9b7c8" />}
+                  value={data.resources.materials}
+                  label="자재"
+                />
+                <ResourceItem
+                  icon={<FaBolt color="var(--accent-cyan)" />}
+                  value={data.resources.energy}
+                  label="에너지"
+                />
+                <ResourceItem
+                  icon={<FaFlask color="#9ad6f3" />}
+                  value={data.resources.research || 0}
+                  label="연구"
+                />
+                <ResourceItem
+                  icon={<FaMapMarkerAlt color="#d8a569" />}
+                  value={data.resources.territory || 0}
+                  label="영토"
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                  gap: "10px",
+                  marginTop: "12px",
+                }}
+              >
+                <StatCard
+                  icon={<FaBalanceScale />}
+                  label="안정도"
+                  value={data.stats.stability ?? 50}
+                />
+                <StatCard
+                  icon={<FaChartLine />}
+                  label="경제"
+                  value={data.stats.economy ?? 50}
+                />
+                <StatCard
+                  icon={<FaShieldAlt />}
+                  label="군사"
+                  value={data.stats.military ?? 50}
+                />
+                <StatCard
+                  icon={<GiTechnoHeart />}
+                  label="기술"
+                  value={data.stats.technology ?? 50}
+                />
+                <StatCard
+                  icon={<GiHeartInside />}
+                  label="행복"
+                  value={data.stats.happiness ?? 50}
+                />
+                <StatCard
+                  icon={<FaLock />}
+                  label="보안"
+                  value={data.stats.security ?? 0}
+                />
+              </div>
+            </div>
+
+            <div
+              className="card"
+              style={{
+                background: "var(--bg-card-strong)",
+                border: "1px solid var(--stroke-soft)",
+              }}
+            >
+              <h3 style={{ marginBottom: "12px", fontSize: "1.05rem" }}>
+                자원 상세
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: "12px",
+                  alignItems: "stretch",
+                }}
+              >
+                <ResourceItem
+                  icon={<FaCoins color="#e2c78a" />}
+                  value={data.resources.gold || 0}
+                  label="국고"
+                  delta={yields.resources.gold}
+                />
+                <ResourceItem
+                  icon={<FaBreadSlice color="#d4a373" />}
+                  value={data.resources.food || 0}
+                  label="식량"
+                  delta={yields.resources.food}
+                />
+                <ResourceItem
+                  icon={<FaUsers color="#9fc79f" />}
+                  value={data.resources.population || 0}
+                  label="인구"
+                  delta={yields.resources.population}
+                />
+                <ResourceItem
+                  icon={<FaPalette color="#f2c27b" />}
+                  value={data.resources.culture_points || 0}
+                  label="문화"
+                  delta={yields.resources.culture_points}
+                />
+                <ResourceItem
+                  icon={<FaEye color="#9fb3ff" />}
+                  value={data.resources.intel || 0}
+                  label="첩보"
+                  delta={yields.resources.intel}
+                />
+                <ResourceItem
+                  icon={<FaTruck color="#7dcfae" />}
+                  value={data.resources.logistics_cap || 0}
+                  label="물류"
+                  delta={yields.resources.logistics_cap}
+                />
+                <ResourceItem
+                  icon={<FaCrown color="#e2c78a" />}
+                  value={data.stats.legitimacy ?? 0}
+                  label="정통성"
+                />
+              </div>
+            </div>
+
+            <StatPanel stats={data.stats} />
+
+            {data.policies && uid && (
+              <PolicyPanel policies={data.policies} uid={uid} />
+            )}
+
+            <div
+              className="card"
+              style={{
+                background: "var(--bg-card-strong)",
+                border: "1px solid var(--stroke-soft)",
+              }}
+            >
+              <h3 style={{ marginBottom: "12px", fontSize: "1.05rem" }}>
+                전략 지표
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                <StatCard
+                  icon={<GiTreeGrowth />}
+                  label="지속"
+                  value={data.stats.sustainability ?? 0}
+                />
+                <StatCard
+                  icon={<GiShakingHands />}
+                  label="영향력"
+                  value={data.stats.influence ?? 0}
+                />
+                <StatCard
+                  icon={<FaGlobeAmericas />}
+                  label="외교"
+                  value={data.stats.diplomacy ?? 0}
+                />
+                <StatCard
+                  icon={<FaEye />}
+                  label="첩보"
+                  value={data.stats.intelligence ?? 0}
+                />
+                <StatCard
+                  icon={<FaTruck />}
+                  label="물류"
+                  value={data.stats.logistics ?? 0}
+                />
+                <StatCard
+                  icon={<FaBook />}
+                  label="문화"
+                  value={data.stats.culture ?? 0}
+                />
+                <StatCard
+                  icon={<FaUsersCog />}
+                  label="결속"
+                  value={data.stats.cohesion ?? 0}
+                />
+                <StatCard
+                  icon={<FaLightbulb />}
+                  label="혁신"
+                  value={data.stats.innovation ?? 0}
+                />
+                <StatCard
+                  icon={<FaSeedling />}
+                  label="성장"
+                  value={data.stats.growth ?? 0}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="dashboard-column">
+            {data.factions && <FactionList factions={data.factions} />}
+
+            <div
+              className="card"
+              style={{
+                background: "var(--bg-card-strong)",
+                border: "1px solid var(--stroke-soft)",
+              }}
+            >
+              <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
+                전략 교리 & 연결망
+              </h3>
               <div
                 style={{
                   display: "flex",
                   gap: "8px",
                   flexWrap: "wrap",
+                  marginBottom: "10px",
                 }}
               >
-                {data.tags && data.tags.length > 0 ? (
-                  data.tags.map((tag: string, idx: number) => (
-                    <span key={idx} className="tag-chip">
-                      <FaHashtag size={10} color="var(--accent-cyan)" /> {tag}
-                    </span>
+                {doctrineEntries.length > 0 ? (
+                  doctrineEntries.map(([key, val]) => (
+                    <StatusChip
+                      key={key}
+                      label={doctrineLabelMap[key] || key}
+                      value={String(val)}
+                      tone="info"
+                    />
                   ))
                 ) : (
-                  <span style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}>
-                    특이 상태 없음
-                  </span>
+                  <StatusChip label="교리" value="아직 없음" tone="muted" />
                 )}
               </div>
-            </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                gap: "12px",
-              }}
-            >
-              <ResourceItem
-                icon={<FaCoins color="var(--accent-gold)" />}
-                value={data.resources.gold}
-                label="금화"
-              />
-              <ResourceItem
-                icon={<FaBreadSlice color="#d1b799" />}
-                value={data.resources.food}
-                label="식량"
-              />
-              <ResourceItem
-                icon={<FaCube color="#a9b7c8" />}
-                value={data.resources.materials}
-                label="자재"
-              />
-              <ResourceItem
-                icon={<FaBolt color="var(--accent-cyan)" />}
-                value={data.resources.energy}
-                label="에너지"
-              />
-              <ResourceItem
-                icon={<FaUsers color="#9fc79f" />}
-                value={data.resources.population || 0}
-                label="인구"
-              />
-              <ResourceItem
-                icon={<FaMapMarkerAlt color="#d8a569" />}
-                value={data.resources.territory || 0}
-                label="영토"
-              />
-              <ResourceItem
-                icon={<FaFlask color="#9ad6f3" />}
-                value={data.resources.research || 0}
-                label="연구"
-              />
-              <ResourceItem
-                icon={<FaPalette color="#f2c27b" />}
-                value={data.resources.culture_points || 0}
-                label="문화"
-              />
-              <ResourceItem
-                icon={<FaEye color="#9fb3ff" />}
-                value={data.resources.intel || 0}
-                label="첩보"
-              />
-              <ResourceItem
-                icon={<FaTruck color="#7dcfae" />}
-                value={data.resources.logistics_cap || 0}
-                label="물류"
-              />
-              <ResourceItem
-                icon={<FaCrown color="#e2c78a" />}
-                value={data.resources.legitimacy || 0}
-                label="정통성"
-              />
-            </div>
-          </div>
-
-          <div
-            className="card"
-            style={{
-              background: "var(--bg-card-strong)",
-              border: "1px solid var(--stroke-soft)",
-            }}
-          >
-            <h3 style={{ marginBottom: "12px", fontSize: "1.05rem" }}>
-              국가 상태 패널
-            </h3>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: "12px",
-              }}
-            >
               <div
                 style={{
-                  marginBottom: 0,
-                  gridColumn: "span 2",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  border: "1px solid var(--stroke-soft)",
-                  background: "rgba(255,255,255,0.03)",
-                  borderRadius: "12px",
-                  padding: "14px",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                   gap: "10px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <FaBalanceScale
-                    size={22}
-                    color={
-                      data.stats.stability < 30 ? "var(--accent-danger)" : "var(--accent-gold)"
-                    }
-                  />
-                  <div>
-                    <div style={{ fontWeight: "bold" }}>안정도</div>
-                    <div style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}>
-                      국가 붕괴 위험도
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: "bold",
-                    color:
-                      data.stats.stability < 30 ? "var(--accent-danger)" : "var(--accent-gold)",
-                  }}
-                >
-                  {data.stats.stability}%
-                </div>
+                <ProfileList title="내부 연결" items={internalLinks} />
+                <ProfileList title="외부 연결" items={externalLinks} />
+                <ProfileList title="시너지/효과" items={synergyEffects} />
               </div>
-
-              <StatCard
-                icon={<FaChartLine />}
-                label="경제"
-                value={data.stats.economy}
-              />
-              <StatCard
-                icon={<FaShieldAlt />}
-                label="군사"
-                value={data.stats.military}
-              />
-              <StatCard
-                icon={<GiHeartInside />}
-                label="행복"
-                value={data.stats.happiness}
-              />
-              <StatCard
-                icon={<GiTechnoHeart />}
-                label="기술"
-                value={data.stats.technology}
-              />
-              <StatCard
-                icon={<GiTreeGrowth />}
-                label="지속"
-                value={data.stats.sustainability}
-              />
-              <StatCard
-                icon={<GiShakingHands />}
-                label="영향력"
-                value={data.stats.influence}
-              />
-              <StatCard
-                icon={<FaGlobeAmericas />}
-                label="외교"
-                value={data.stats.diplomacy ?? 0}
-              />
-              <StatCard
-                icon={<FaEye />}
-                label="첩보"
-                value={data.stats.intelligence ?? 0}
-              />
-              <StatCard
-                icon={<FaTruck />}
-                label="물류"
-                value={data.stats.logistics ?? 0}
-              />
-              <StatCard
-                icon={<FaBook />}
-                label="문화"
-                value={data.stats.culture ?? 0}
-              />
-              <StatCard
-                icon={<FaUsersCog />}
-                label="결속"
-                value={data.stats.cohesion ?? 0}
-              />
-              <StatCard
-                icon={<FaLightbulb />}
-                label="혁신"
-                value={data.stats.innovation ?? 0}
-              />
-              <StatCard
-                icon={<FaLock />}
-                label="보안"
-                value={data.stats.security ?? 0}
-              />
-              <StatCard
-                icon={<FaSeedling />}
-                label="성장"
-                value={data.stats.growth ?? 0}
-              />
-            </div>
-          </div>
-
-          <div
-            className="card"
-            style={{
-              background: "var(--bg-card-strong)",
-              border: "1px solid var(--stroke-soft)",
-            }}
-          >
-            <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
-              전략 교리 & 연결망
-            </h3>
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                flexWrap: "wrap",
-                marginBottom: "10px",
-              }}
-            >
-              {doctrineEntries.length > 0 ? (
-                doctrineEntries.map(([key, val]) => (
-                  <StatusChip
-                    key={key}
-                    label={doctrineLabelMap[key] || key}
-                    value={String(val)}
-                    tone="info"
-                  />
-                ))
-              ) : (
-                <StatusChip label="교리" value="아직 없음" tone="muted" />
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "10px",
-              }}
-            >
-              <ProfileList title="내부 연결" items={internalLinks} />
-              <ProfileList title="외부 연결" items={externalLinks} />
-              <ProfileList title="시너지/효과" items={synergyEffects} />
             </div>
           </div>
         </div>
+      )}
 
+      {activeTab === "command" && (
         <div className="dashboard-column">
           <div
             className="card"
@@ -617,43 +785,6 @@ export default function Dashboard({ data, uid }: Props) {
             <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
               통치 명령 (AI 판정)
             </h3>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: "10px",
-                marginBottom: "12px",
-              }}
-            >
-              {playbookTemplates.map((tpl) => (
-                <button
-                  key={tpl.title}
-                  onClick={() => applyTemplate(tpl.intent, tpl.prompt)}
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    color: "var(--text-main)",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    border: "1px solid var(--stroke-soft)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontWeight: "bold" }}>{tpl.title}</div>
-                  <div
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--text-sub)",
-                      marginTop: "4px",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {tpl.prompt}
-                  </div>
-                </button>
-              ))}
-            </div>
 
             <label style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}>
               행동 카테고리
@@ -687,14 +818,15 @@ export default function Dashboard({ data, uid }: Props) {
               disabled={isProcessing || cooldown > 0}
               style={{
                 opacity: isProcessing || cooldown > 0 ? 0.55 : 1,
-                cursor: isProcessing || cooldown > 0 ? "not-allowed" : "pointer",
+                cursor:
+                  isProcessing || cooldown > 0 ? "not-allowed" : "pointer",
               }}
             >
               {isProcessing
                 ? "AI가 판정 중..."
                 : cooldown > 0
-                ? `재정비 중... (${cooldown}초)`
-                : "명령 실행"}
+                  ? `재정비 중... (${cooldown}초)`
+                  : "명령 실행"}
             </button>
 
             {lastResult && (
@@ -712,7 +844,9 @@ export default function Dashboard({ data, uid }: Props) {
                 >
                   <FaCheckCircle /> 판정 결과
                 </strong>
-                <div style={{ marginTop: "6px", lineHeight: 1.5 }}>{lastResult}</div>
+                <div style={{ marginTop: "6px", lineHeight: 1.5 }}>
+                  {lastResult}
+                </div>
                 {lastHeadline && (
                   <div
                     style={{
@@ -736,12 +870,8 @@ export default function Dashboard({ data, uid }: Props) {
             }}
           >
             <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
-              자원 수급·특수 컨텐츠
+              자동 명령 (자원/효과)
             </h3>
-            <p style={{ marginTop: 0, color: "var(--text-sub)", fontSize: "0.9rem" }}>
-              한 번 클릭하면 명령문이 자동으로 입력됩니다. 자원 루트와 서사 컨텐츠를
-              번갈아 사용해 보급-스토리 균형을 맞추세요.
-            </p>
             <div
               style={{
                 display: "grid",
@@ -772,7 +902,9 @@ export default function Dashboard({ data, uid }: Props) {
                   >
                     {route.title}
                   </div>
-                  <div style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}>
+                  <div
+                    style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}
+                  >
                     보상: {route.reward}
                   </div>
                 </button>
@@ -780,9 +912,61 @@ export default function Dashboard({ data, uid }: Props) {
             </div>
           </div>
 
+          <div
+            className="card"
+            style={{
+              borderColor: "var(--stroke-soft)",
+              background: "var(--bg-card-strong)",
+            }}
+          >
+            <h3 style={{ marginBottom: "10px", fontSize: "1.05rem" }}>
+              예시 명령 (아이디어)
+            </h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              {playbookTemplates.map((tpl) => (
+                <div
+                  key={`example-${tpl.title}`}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--stroke-soft)",
+                    background: "rgba(255,255,255,0.03)",
+                    boxShadow: "none",
+                  }}
+                >
+                  <div
+                    style={{ fontWeight: "bold", color: "var(--text-main)" }}
+                  >
+                    {tpl.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "var(--text-sub)",
+                      marginTop: "6px",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {tpl.prompt}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "history" && (
+        <div className="dashboard-column">
           <HistorySection uid={uid} />
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -800,10 +984,10 @@ function StatusChip({
     tone === "info"
       ? "#8ab7d8"
       : tone === "safe"
-      ? "#9fc79f"
-      : tone === "alert"
-      ? "#e2c78a"
-      : "#7c8ba1";
+        ? "#9fc79f"
+        : tone === "alert"
+          ? "#e2c78a"
+          : "#7c8ba1";
   const toneBorder = tone === "muted" ? "var(--stroke-soft)" : `${toneColor}55`;
 
   return (
@@ -830,8 +1014,9 @@ interface ResourceProps {
   icon: React.ReactNode;
   value: number;
   label: string;
+  delta?: number;
 }
-function ResourceItem({ icon, value, label }: ResourceProps) {
+function ResourceItem({ icon, value, label, delta }: ResourceProps) {
   return (
     <div
       style={{
@@ -841,13 +1026,34 @@ function ResourceItem({ icon, value, label }: ResourceProps) {
         textAlign: "center",
         border: "1px solid var(--stroke-soft)",
         boxShadow: "none",
+        position: "relative",
       }}
     >
       <div style={{ marginBottom: "4px" }}>{icon}</div>
-      <div style={{ fontWeight: "bold", fontSize: "1.1rem", color: "var(--text-main)" }}>
+      <div
+        style={{
+          fontWeight: "bold",
+          fontSize: "1.1rem",
+          color: "var(--text-main)",
+        }}
+      >
         {value}
       </div>
-      <div style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}>{label}</div>
+      {delta !== undefined && delta !== 0 && (
+        <div
+          style={{
+            fontSize: "0.8rem",
+            color: delta > 0 ? "var(--accent-lime)" : "var(--accent-danger)",
+            marginBottom: "2px",
+          }}
+        >
+          {delta > 0 ? "+" : ""}
+          {delta}/h
+        </div>
+      )}
+      <div style={{ fontSize: "0.85rem", color: "var(--text-sub)" }}>
+        {label}
+      </div>
     </div>
   );
 }
@@ -876,7 +1082,13 @@ function StatCard({ icon, label, value }: StatProps) {
         <span style={{ color: "var(--text-sub)" }}>{icon}</span>
         <span style={{ fontSize: "0.95rem" }}>{label}</span>
       </div>
-      <span style={{ fontWeight: "bold", fontSize: "1.05rem", color: "var(--text-main)" }}>
+      <span
+        style={{
+          fontWeight: "bold",
+          fontSize: "1.05rem",
+          color: "var(--text-main)",
+        }}
+      >
         {value}
       </span>
     </div>
@@ -894,7 +1106,13 @@ function ProfileList({ title, items }: { title: string; items: string[] }) {
         minHeight: "150px",
       }}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "8px", color: "var(--text-main)" }}>
+      <div
+        style={{
+          fontWeight: "bold",
+          marginBottom: "8px",
+          color: "var(--text-main)",
+        }}
+      >
         {title}
       </div>
       {items && items.length > 0 ? (
@@ -914,7 +1132,9 @@ function ProfileList({ title, items }: { title: string; items: string[] }) {
           ))}
         </ul>
       ) : (
-        <div style={{ color: "var(--text-sub)", fontSize: "0.9rem" }}>기록 없음</div>
+        <div style={{ color: "var(--text-sub)", fontSize: "0.9rem" }}>
+          기록 없음
+        </div>
       )}
     </div>
   );
@@ -927,7 +1147,7 @@ function HistorySection({ uid }: { uid: string }) {
     const q = query(
       collection(db, "nations", uid, "logs"),
       orderBy("created_at", "desc"),
-      limit(10)
+      limit(10),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -958,7 +1178,13 @@ function HistorySection({ uid }: { uid: string }) {
       </h3>
 
       {logs.length === 0 ? (
-        <div style={{ color: "var(--text-sub)", textAlign: "center", padding: "12px" }}>
+        <div
+          style={{
+            color: "var(--text-sub)",
+            textAlign: "center",
+            padding: "12px",
+          }}
+        >
           아직 기록된 역사가 없습니다.
         </div>
       ) : (
@@ -983,34 +1209,34 @@ function HistorySection({ uid }: { uid: string }) {
               >
                 {new Date(log.created_at).toLocaleString()}
               </div>
-            <div
-              style={{
-                fontWeight: "bold",
-                marginBottom: "8px",
-                color: "var(--accent-gold)",
-              }}
+              <div
+                style={{
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                  color: "var(--accent-gold)",
+                }}
               >
                 &quot;{log.command}&quot;
               </div>
-            {log.intent && (
-              <div
-                style={{
-                  display: "inline-block",
-                  padding: "3px 10px",
-                  backgroundColor: "rgba(255,255,255,0.05)",
-                  border: "1px solid var(--stroke-soft)",
-                  borderRadius: "12px",
-                  fontSize: "0.7rem",
-                  color: "var(--text-sub)",
-                  marginBottom: "6px",
-                }}
-              >
-                {log.intent}
+              {log.intent && (
+                <div
+                  style={{
+                    display: "inline-block",
+                    padding: "3px 10px",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    border: "1px solid var(--stroke-soft)",
+                    borderRadius: "12px",
+                    fontSize: "0.7rem",
+                    color: "var(--text-sub)",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {log.intent}
+                </div>
+              )}
+              <div style={{ fontSize: "0.95rem", lineHeight: "1.4" }}>
+                {log.narrative}
               </div>
-            )}
-            <div style={{ fontSize: "0.95rem", lineHeight: "1.4" }}>
-              {log.narrative}
-            </div>
               <div
                 style={{
                   marginTop: "8px",
@@ -1023,10 +1249,15 @@ function HistorySection({ uid }: { uid: string }) {
                   Object.entries(log.changes).map(([key, val]) => (
                     <span
                       key={key}
-                      style={{ color: val > 0 ? "var(--accent-lime)" : "var(--accent-danger)" }}
+                      style={{
+                        color:
+                          val > 0
+                            ? "var(--accent-lime)"
+                            : "var(--accent-danger)",
+                      }}
                     >
-                      {key.split(".")[1]} {val > 0 ? "+" : ""}
-                      {val}
+                      {formatChangeKey(key)} {val > 0 ? "+" : ""}
+                      <strong>{val}</strong>
                     </span>
                   ))}
               </div>
@@ -1036,4 +1267,40 @@ function HistorySection({ uid }: { uid: string }) {
       )}
     </div>
   );
+}
+
+function formatChangeKey(key: string) {
+  const [, raw] = key.split(".");
+  const map: Record<string, string> = {
+    gold: "금화",
+    food: "식량",
+    materials: "자재",
+    energy: "에너지",
+    population: "인구",
+    territory: "영토",
+    research: "연구",
+    culture_points: "문화",
+    intel: "첩보",
+    logistics_cap: "물류",
+    legitimacy: "정통성",
+    stability: "안정도",
+    economy: "경제",
+    military: "군사",
+    happiness: "행복",
+    technology: "기술",
+    sustainability: "지속",
+    influence: "영향력",
+    diplomacy: "외교",
+    intelligence: "첩보",
+    logistics: "물류",
+    culture: "문화",
+    cohesion: "결속",
+    innovation: "혁신",
+    security: "보안",
+    growth: "성장",
+    cooldown_seconds: "쿨다운",
+    shield_until: "보호막",
+    last_action_at: "최종 명령",
+  };
+  return map[raw] || raw || key;
 }

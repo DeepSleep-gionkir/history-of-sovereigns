@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
@@ -10,6 +8,7 @@ import {
   FaArrowRight,
   FaCheckCircle,
 } from "react-icons/fa";
+import ContinentSelector from "./continent/ContinentSelector";
 
 interface Props {
   uid: string;
@@ -43,6 +42,11 @@ type FoundingForm = {
 };
 
 export default function NationCreation({ uid }: Props) {
+  const [viewMode, setViewMode] = useState<"continent" | "form">("continent");
+  const [selectedContinentId, setSelectedContinentId] = useState<string | null>(
+    null,
+  );
+
   const [formData, setFormData] = useState<FoundingForm>({
     name: "",
     ruler_title: "",
@@ -339,7 +343,7 @@ export default function NationCreation({ uid }: Props) {
     }
     // 모든 질문이 비어있지 않은지 확인
     const emptyKey = questions.find(
-      (q) => !String(formData[q.key] || "").trim()
+      (q) => !String(formData[q.key] || "").trim(),
     );
     if (emptyKey) {
       setError("모든 질문에 답변해야 건국할 수 있습니다.");
@@ -363,7 +367,10 @@ export default function NationCreation({ uid }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ uid, answers: formData }),
+        body: JSON.stringify({
+          uid,
+          answers: { ...formData, continentId: selectedContinentId },
+        }),
       });
 
       const json = await res.json();
@@ -378,19 +385,89 @@ export default function NationCreation({ uid }: Props) {
       }
     } catch (error: unknown) {
       console.error("건국 실패:", error);
-      setError(error instanceof Error ? error.message : "건국 중 오류가 발생했습니다.");
+      setError(
+        error instanceof Error ? error.message : "건국 중 오류가 발생했습니다.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // 1. Continent Selection View
+  if (viewMode === "continent") {
+    return (
+      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px" }}>
+        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+          <FaCrown
+            size={48}
+            color="var(--accent-gold)"
+            style={{ marginBottom: "10px" }}
+          />
+          <h1 style={{ color: "var(--text-main)", letterSpacing: "0.08em" }}>
+            THE FOUNDING
+          </h1>
+          <p style={{ color: "var(--text-sub)", lineHeight: 1.6 }}>
+            영토를 다스릴 대륙을 먼저 선택하십시오.
+          </p>
+        </div>
+
+        <ContinentSelector uid={uid} onSelect={setSelectedContinentId} />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: "40px",
+          }}
+        >
+          <button
+            className="btn-primary"
+            disabled={!selectedContinentId}
+            onClick={() => setViewMode("form")}
+            style={{
+              maxWidth: "300px",
+              opacity: selectedContinentId ? 1 : 0.5,
+              cursor: selectedContinentId ? "pointer" : "not-allowed",
+            }}
+          >
+            이 대륙에 건국하기 <FaArrowRight style={{ marginLeft: "8px" }} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Nation Creation Form View
   return (
     <div style={{ maxWidth: "640px", margin: "0 auto", padding: "24px" }}>
+      <button
+        onClick={() => setViewMode("continent")}
+        style={{
+          background: "transparent",
+          color: "var(--text-sub)",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          marginBottom: "20px",
+          fontSize: "0.9rem",
+        }}
+      >
+        <FaArrowLeft /> 대륙 선택으로 돌아가기
+      </button>
+
       <div style={{ textAlign: "center", marginBottom: "36px" }}>
-        <FaCrown size={48} color="var(--accent-gold)" style={{ marginBottom: "10px" }} />
-        <h1 style={{ color: "var(--text-main)", letterSpacing: "0.08em" }}>THE FOUNDING</h1>
+        <h1
+          style={{
+            color: "var(--text-main)",
+            letterSpacing: "0.08em",
+            fontSize: "1.8rem",
+          }}
+        >
+          DETAILS OF SOVEREIGNTY
+        </h1>
         <p style={{ color: "var(--text-sub)", lineHeight: 1.6 }}>
-          새로운 역사가 시작됩니다. 신중하게 결정하십시오.
+          {/* Show continent name info here if we fetched it, but ID is sufficient for now */}
+          건국 세부 사항을 결정합니다.
           <br />
           <span style={{ fontSize: "0.85rem", color: "var(--accent-rose)" }}>
             * 생성 후에는 되돌리거나 다시 뽑을 수 없습니다 (No Reroll).
@@ -441,7 +518,11 @@ export default function NationCreation({ uid }: Props) {
         )}
         {error && (
           <div
-            style={{ color: "var(--accent-danger)", marginTop: "6px", fontSize: "0.9rem" }}
+            style={{
+              color: "var(--accent-danger)",
+              marginTop: "6px",
+              fontSize: "0.9rem",
+            }}
           >
             {error}
           </div>
@@ -506,8 +587,8 @@ export default function NationCreation({ uid }: Props) {
             fontSize: "0.9rem",
           }}
         >
-          AI가 여러분의 답변을 바탕으로 초기 스탯/자원/태그를 설계합니다.
-          입력이 탄탄할수록 국가 서사가 매끄럽게 생성됩니다.
+          AI가 여러분의 답변을 바탕으로 초기 스탯/자원/태그를 설계합니다. 입력이
+          탄탄할수록 국가 서사가 매끄럽게 생성됩니다.
         </div>
       </div>
 
