@@ -82,6 +82,7 @@ export default function ContinentSelector({ uid, onSelect }: Props) {
         }, 100);
       } else {
         alert("대륙 발견 실패: " + (json.error || "Unknown error"));
+      }
     } catch (e: unknown) {
       const err = e instanceof Error ? e : new Error(String(e));
       alert("Error: " + err.message);

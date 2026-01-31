@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { Continent } from "@/types/db";
+import { Continent, DbDate } from "@/types/db";
 
 // Simple SVG paths (abstract blobs)
 const SVGS = [
@@ -61,7 +61,7 @@ export async function POST() {
         imagePath: SVGS[info.svgIndex],
         maxNations: 20,
         currentNations: 0, // Should be updated based on real count if needed, but 0 for seed
-        createdAt: serverTimestamp(),
+        createdAt: serverTimestamp() as unknown as DbDate,
         isSystem: true,
       };
 
