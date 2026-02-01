@@ -138,14 +138,14 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
                   <div
                     className="h-full bg-accent-cyan transition-all duration-1000"
                     style={{
-                      width: `${(cont.capacity.current / cont.capacity.max) * 100}%`,
+                      width: `${((cont.capacity?.current || 0) / (cont.capacity?.max || 1)) * 100}%`,
                     }}
                   />
                 </div>
                 <div className="flex justify-between text-xs mt-1 text-gray-400">
                   <span>Occupancy</span>
                   <span>
-                    {cont.capacity.current} / {cont.capacity.max}
+                    {cont.capacity?.current || 0} / {cont.capacity?.max || 0}
                   </span>
                 </div>
               </div>
