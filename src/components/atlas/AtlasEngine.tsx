@@ -53,10 +53,26 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
     fetchWorld();
   }, []);
 
-  const handleFocus = (id: string) => {
-    setFocusedId(id);
-    onSelect(id);
-  };
+  // Scroll to focused item on change
+  useEffect(() => {
+    if (!scrollRef.current || !focusedId || continents.length === 0) return;
+
+    const index = continents.findIndex((c) => c.id === focusedId);
+    if (index === -1) return;
+
+    // Card width (280) + Gap (32/2rem) = roughly 312px per item stride
+    // But exact math with snap is better handled by browser if we just scroll to offset
+    // However, with snap-center and correct padding, scrollTo usually works best by index.
+
+    const cardWidth = 280;
+    const gap = 32;
+    const offset = index * (cardWidth + gap);
+
+    scrollRef.current.scrollTo({
+      left: offset,
+      behavior: "smooth",
+    });
+  }, [focusedId, continents]);
 
   if (loading)
     return (
@@ -69,7 +85,7 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
     );
 
   return (
-    <div className="relative w-full h-[70vh] overflow-hidden bg-[#0f1a15] rounded-[24px] border border-stroke-soft shadow-2xl">
+    <div className="relative w-full h-[70vh] overflow-hidden bg-[#0f1a15] rounded-[24px] border border-stroke-soft shadow-2xl group">
       {/* Background Grid / Texture */}
       <div
         className="absolute inset-0 opacity-10 pointer-events-none"
@@ -80,7 +96,7 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
       />
 
       {/* Header HUD */}
-      <div className="absolute top-6 left-8 z-10">
+      <div className="absolute top-6 left-8 z-10 pointer-events-none select-none">
         <h2 className="headline text-accent-gold flex items-center gap-3">
           <FaMapMarkedAlt />
           ATLAS V2.0
@@ -93,8 +109,13 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
       {/* Horizontal Scroll Area (The "Reel") */}
       <div
         ref={scrollRef}
-        className="absolute bottom-0 left-0 right-0 h-[400px] flex items-center overflow-x-auto gap-8 px-[50vw] scrollbar-hide snap-x snap-mandatory"
-        style={{ scrollBehavior: "smooth" }}
+        className="absolute bottom-0 left-0 right-0 h-[450px] flex items-center overflow-x-auto gap-8 pb-8 scrollbar-hide snap-x snap-mandatory"
+        style={{
+          scrollBehavior: "smooth",
+          // Center the first item: 50vw - Half Card Width (140px)
+          paddingLeft: "calc(50vw - 140px)",
+          paddingRight: "calc(50vw - 140px)",
+        }}
       >
         {continents.map((cont) => {
           const isFocused = focusedId === cont.id;
@@ -106,8 +127,8 @@ export default function AtlasEngine({ uid, onSelect }: Props) {
                         snap-center shrink-0 w-[280px] h-[340px] 
                         transition-all duration-500 ease-out cursor-pointer
                         flex flex-col items-center justify-end pb-8
-                        border border-white/5 rounded-[20px]
-                        ${isFocused ? "scale-110 bg-white/5 border-accent-gold shadow-[0_0_30px_rgba(231,198,118,0.2)]" : "scale-90 opacity-50 grayscale"}
+                        border border-white/5 rounded-[20px] relative
+                        ${isFocused ? "scale-110 bg-white/5 border-accent-gold shadow-[0_0_30px_rgba(231,198,118,0.2)] z-10" : "scale-90 opacity-50 grayscale hover:opacity-80"}
                     `}
             >
               {/* Map Visual (Vector Path) */}
