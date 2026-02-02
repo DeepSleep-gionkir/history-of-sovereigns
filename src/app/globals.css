@@ -1,86 +1,26 @@
 @import "tailwindcss";
 
-@theme {
-  --color-accent-gold: #e7c676;
-  --color-accent-cyan: #8dbfa8;
-  --color-accent-rose: #d7a7b0;
-  --color-accent-lime: #a7d38c;
-  --color-accent-danger: #e27f80;
-
-  --color-bg-main: #0f1a15;
-  --color-bg-card: #122019;
-  --color-bg-card-strong: #14271d;
-  --color-stroke-soft: rgba(255, 255, 255, 0.06);
-
-  --color-text-main: #f1f3e9;
-  --color-text-sub: #b2c1b2;
-
-  --font-display: "Noto Serif KR", serif;
-  --font-sans: "Manrope", sans-serif;
-}
-
-/* Legacy Compatibility Layer (for inline styles) */
 :root {
-  --bg-main:
-    radial-gradient(
-      circle at 18% 18%,
-      rgba(236, 205, 140, 0.1),
-      rgba(0, 0, 0, 0)
-    ),
-    radial-gradient(
-      circle at 82% 12%,
-      rgba(146, 186, 141, 0.12),
-      rgba(0, 0, 0, 0)
-    ),
-    #0f1a15;
-  --bg-card: #122019;
-  --bg-card-strong: #14271d;
-  --stroke-soft: rgba(255, 255, 255, 0.06);
-
-  --accent-gold: #e7c676;
-  --accent-cyan: #8dbfa8;
-  --accent-rose: #d7a7b0;
-  --accent-lime: #a7d38c;
-  --accent-danger: #e27f80;
-
-  --text-main: #f1f3e9;
-  --text-sub: #b2c1b2;
-
-  --border-radius: 16px;
-  --glow: 0 18px 36px rgba(0, 0, 0, 0.32);
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-@layer base {
-  body {
-    @apply bg-bg-main text-text-main font-sans min-h-screen overflow-x-hidden antialiased;
-    background: var(--bg-main); /* Keep the radial gradient */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply w-full rounded-[16px] px-[18px] py-[14px] text-[1rem] font-bold text-[#0f1a15] shadow-lg transition-all duration-200 active:scale-95 hover:-translate-y-0.5 hover:shadow-xl;
-    background: linear-gradient(120deg, #e7c676, #8dbfa8);
-  }
-
-  .card {
-    @apply mb-[18px] rounded-[16px] border border-stroke-soft bg-bg-card p-[20px] shadow-2xl backdrop-blur-sm;
-  }
-
-  .glass {
-    @apply rounded-[14px] border border-stroke-soft bg-white/5 backdrop-blur-sm shadow-xl;
-  }
-
-  .headline {
-    @apply font-display text-[2.2rem] font-bold tracking-wide;
-  }
-}
-
-/* Utilities for scrollbar hiding */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
